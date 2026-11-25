@@ -1,0 +1,2017 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="迟川黑卡">
+  <meta name="theme-color" content="#070709">
+  <link rel="apple-touch-icon" href="icon.jpg">
+  <link rel="icon" href="icon.jpg">
+  <title>迟川 · 黑金副卡刷卡机 &amp; 偏爱账单</title>
+  <style>
+    :root {
+      --app-h: 100vh;
+      --bg: #070709;
+      --card: #111116;
+      --inp: #181820;
+      --line: #262632;
+      --gold: #d6b27c;
+      --gold-hi: #f3d7a8;
+      --rose: #e5a99c;
+      --em: #58b88a;
+      --danger: #e26d72;
+      --text: #f2eee8;
+      --muted: #98939e;
+      --dim: #66626e;
+      --accent: var(--gold);
+      --accent-hi: var(--gold-hi);
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
+    input, textarea, select { user-select: text; font-family: inherit; }
+
+    /* iPhone 14 Pro Standalone 全屏修复：严禁根容器使用 fixed inset:0 或 100dvh */
+    html, body {
+      margin: 0; padding: 0; width: 100%; height: var(--app-h);
+      overflow: hidden; overscroll-behavior: none;
+      background: var(--bg); color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", "Helvetica Neue", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    #app {
+      width: 100%; max-width: 480px; margin: 0 auto;
+      height: var(--app-h);
+      display: flex; flex-direction: column; overflow: hidden;
+      position: relative; background: var(--bg);
+      background-image:
+        radial-gradient(ellipse 85% 28% at 50% 0%, rgba(214, 178, 124, 0.085), transparent 68%),
+        radial-gradient(ellipse 75% 24% at 50% 100%, rgba(229, 169, 156, 0.05), transparent 72%);
+      transition: background-image 0.35s ease;
+    }
+    #app.mode-income {
+      --accent: var(--em);
+      --accent-hi: #9ae0be;
+      background-image:
+        radial-gradient(ellipse 85% 30% at 50% 0%, rgba(88, 184, 138, 0.095), transparent 68%),
+        radial-gradient(ellipse 75% 24% at 50% 100%, rgba(229, 169, 156, 0.08), transparent 72%);
+    }
+    @media (min-width: 520px) {
+      #app {
+        border-left: 1px solid rgba(214, 178, 124, 0.14);
+        border-right: 1px solid rgba(214, 178, 124, 0.14);
+        box-shadow: 0 0 80px rgba(0, 0, 0, 0.92);
+      }
+    }
+
+    /* 顶部栏 */
+    .topbar {
+      flex-shrink: 0; z-index: 25;
+      padding: max(12px, env(safe-area-inset-top)) 15px 10px;
+      background: rgba(11, 11, 16, 0.92);
+      backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    }
+    .brand { display: flex; align-items: center; gap: 8px; min-width: 0; }
+    .dot {
+      width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+      background: var(--accent); box-shadow: 0 0 10px var(--accent);
+      transition: background 0.3s, box-shadow 0.3s;
+    }
+    .brand-name { font-size: 13px; font-weight: 600; letter-spacing: 0.11em; color: #f6f2eb; white-space: nowrap; }
+    .pill-eng {
+      font-size: 9.5px; padding: 2px 8px; border-radius: 999px; white-space: nowrap;
+      background: rgba(214, 178, 124, 0.12); border: 1px solid rgba(214, 178, 124, 0.34); color: var(--gold-hi);
+    }
+    .pill-eng.ai { background: rgba(229, 169, 156, 0.16); border-color: rgba(229, 169, 156, 0.45); color: #f8cfc6; }
+    .snd-btn {
+      width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+      display: inline-flex; align-items: center; justify-content: center;
+      background: rgba(214, 178, 124, 0.09); border: 1px solid rgba(214, 178, 124, 0.28); color: var(--gold-hi);
+    }
+    .snd-btn.off { opacity: 0.42; color: var(--muted); border-color: var(--line); background: rgba(255,255,255,0.03); }
+
+    /* 主滚动容器 */
+    .main {
+      flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch;
+      padding: 12px 14px 22px; scrollbar-width: none;
+    }
+    .main::-webkit-scrollbar { display: none; }
+
+    /* 底部 4 标签导航栏：无缝延伸至 iOS 小白条后方 */
+    .tabbar {
+      flex-shrink: 0; z-index: 25;
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px;
+      background: rgba(12, 12, 16, 0.96);
+      backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+      border-top: 1px solid rgba(255, 255, 255, 0.07);
+      padding: 8px 8px max(10px, env(safe-area-inset-bottom));
+    }
+    .tbtn {
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+      padding: 4px 2px; border-radius: 12px; font-size: 10.5px; color: var(--dim); transition: color 0.18s;
+    }
+    .tbtn.active { color: var(--accent-hi); }
+
+    /* 通用基础组件 */
+    button { border: none; background: none; color: inherit; font-family: inherit; cursor: pointer; padding: 0; }
+    button:active { transform: scale(0.96); }
+    .hidden { display: none !important; }
+    .stack { display: flex; flex-direction: column; gap: 12px; }
+    .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .g3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
+    .card {
+      background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 14px;
+    }
+    .sec-t { font-size: 13px; font-weight: 600; color: #f6f2ec; }
+    .sec-s { font-size: 10.5px; color: var(--muted); }
+    .badge {
+      display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px;
+      font-size: 10px; font-weight: 500; white-space: nowrap;
+    }
+    .bg-gold { background: rgba(214, 178, 124, 0.14); color: var(--gold-hi); border: 1px solid rgba(214, 178, 124, 0.3); }
+    .bg-em   { background: rgba(88, 184, 138, 0.14); color: #9ae0be; border: 1px solid rgba(88, 184, 138, 0.32); }
+    .bg-rose { background: rgba(229, 169, 156, 0.16); color: #f9d5cd; border: 1px solid rgba(229, 169, 156, 0.36); }
+    .bg-red  { background: rgba(226, 109, 114, 0.16); color: #ffafb3; border: 1px solid rgba(226, 109, 114, 0.38); }
+    .bg-dim  { background: rgba(255, 255, 255, 0.05); color: var(--muted); border: 1px solid var(--line); }
+
+    /* 顶部银行 / 小金库推送横幅 */
+    #banner {
+      position: absolute; left: 12px; right: 12px; top: calc(max(12px, env(safe-area-inset-top)) + 52px); z-index: 70;
+      padding: 11px 14px; border-radius: 18px;
+      background: rgba(18, 18, 25, 0.97); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+      border: 1px solid rgba(214, 178, 124, 0.45); box-shadow: 0 14px 36px rgba(0, 0, 0, 0.8);
+      transform: translateY(-190%); opacity: 0; pointer-events: none;
+      transition: transform 0.36s cubic-bezier(.22,1,.36,1), opacity 0.25s;
+    }
+    #banner.income { border-color: rgba(88, 184, 138, 0.48); }
+    #banner.show { transform: translateY(0); opacity: 1; pointer-events: auto; }
+
+    /* 顶部收支切换器 */
+    .seg {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 5px; padding: 4px;
+      background: var(--card); border: 1px solid var(--line); border-radius: 16px;
+    }
+    .seg-btn {
+      padding: 9px 6px; border-radius: 12px; font-size: 12px; font-weight: 500;
+      color: var(--muted); text-align: center; transition: all 0.22s ease;
+    }
+    .seg-btn.exp-on {
+      background: linear-gradient(135deg, rgba(214,178,124,0.22), rgba(214,178,124,0.08));
+      border: 1px solid rgba(214, 178, 124, 0.48); color: var(--gold-hi); font-weight: 600;
+    }
+    .seg-btn.inc-on {
+      background: linear-gradient(135deg, rgba(88,184,138,0.2), rgba(229,169,156,0.16));
+      border: 1px solid rgba(88, 184, 138, 0.48); color: #b8eed3; font-weight: 600;
+    }
+
+    /* 互动黑卡 / 宝宝小金库卡面 */
+    .lux-card {
+      position: relative; border-radius: 22px; padding: 18px 18px 15px; overflow: hidden;
+      background:
+        repeating-linear-gradient(125deg, rgba(255,255,255,0.016) 0, rgba(255,255,255,0.016) 1px, transparent 1px, transparent 3px),
+        radial-gradient(circle at 88% 12%, rgba(214, 178, 124, 0.24), transparent 48%),
+        linear-gradient(135deg, #221d17 0%, #0d0d12 48%, #191612 100%);
+      border: 1px solid rgba(214, 178, 124, 0.42);
+      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.72), inset 0 1px 0 rgba(243, 215, 168, 0.2);
+      transition: border-color 0.35s, background 0.35s;
+    }
+    .lux-card.treasury {
+      background:
+        repeating-linear-gradient(125deg, rgba(255,255,255,0.016) 0, rgba(255,255,255,0.016) 1px, transparent 1px, transparent 3px),
+        radial-gradient(circle at 86% 14%, rgba(88, 184, 138, 0.22), transparent 48%),
+        radial-gradient(circle at 14% 92%, rgba(229, 169, 156, 0.2), transparent 46%),
+        linear-gradient(135deg, #12211b 0%, #0d1014 50%, #231819 100%);
+      border-color: rgba(88, 184, 138, 0.44);
+    }
+    .lux-card::after {
+      content: ""; position: absolute; top: -40%; left: -65%; width: 46%; height: 185%;
+      background: linear-gradient(90deg, transparent, rgba(243, 215, 168, 0.14), transparent);
+      transform: rotate(22deg); pointer-events: none;
+      animation: shimmerIdle 8s ease-in-out infinite;
+    }
+    .lux-card.pulse-nfc { animation: nfcPulse 0.75s ease; }
+    .lux-card.pulse-inc::after {
+      background: linear-gradient(90deg, transparent, rgba(154, 224, 190, 0.34), rgba(243, 215, 168, 0.28), transparent);
+      animation: shimmerBurst 0.9s ease-out;
+    }
+    .chip {
+      width: 34px; height: 24px; border-radius: 6px; position: relative; overflow: hidden;
+      background: linear-gradient(135deg, #ebd09c, #a7844c 55%, #e2c48c);
+      border: 1px solid rgba(255, 246, 225, 0.36);
+    }
+    .chip::before, .chip::after { content: ""; position: absolute; border: 1px solid rgba(15, 12, 8, 0.34); }
+    .chip::before { inset: 5px 0; border-left: 0; border-right: 0; }
+    .chip::after { inset: 0 11px; border-top: 0; border-bottom: 0; }
+    .card-no {
+      margin-top: 15px; font-size: 16px; letter-spacing: 0.18em; color: #f6ead4;
+      font-variant-numeric: tabular-nums;
+    }
+    .card-foot {
+      margin-top: 13px; padding-top: 10px; border-top: 1px solid rgba(255, 255, 255, 0.09);
+      display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+    }
+
+    /* 表单与标签 */
+    .amt-wrap {
+      display: flex; align-items: baseline; gap: 6px; padding: 8px 13px; border-radius: 16px;
+      background: var(--inp); border: 1px solid rgba(214, 178, 124, 0.26);
+    }
+    #app.mode-income .amt-wrap { border-color: rgba(88, 184, 138, 0.34); }
+    .amt-sym { font-size: 24px; font-weight: 300; color: var(--accent); }
+    .amt-inp {
+      flex: 1; min-width: 0; background: none; border: none; outline: none;
+      font-size: 32px; font-weight: 300; color: var(--accent-hi);
+      font-variant-numeric: tabular-nums;
+    }
+    .amt-inp::placeholder { color: rgba(255, 255, 255, 0.18); }
+
+    .inp {
+      width: 100%; padding: 10px 12px; border-radius: 13px; font-size: 12.5px;
+      background: var(--inp); border: 1px solid var(--line); color: var(--text); outline: none;
+    }
+    .inp:focus { border-color: var(--accent); }
+    .inp::placeholder { color: var(--dim); }
+
+    .hscroll { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+    .hscroll::-webkit-scrollbar { display: none; }
+    .qchip {
+      flex-shrink: 0; padding: 5px 11px; border-radius: 999px; font-size: 11px;
+      background: rgba(255, 255, 255, 0.04); border: 1px solid var(--line); color: #ded8ce;
+      font-variant-numeric: tabular-nums;
+    }
+    .qchip.on { background: var(--accent); border-color: var(--accent); color: #08090c; font-weight: 600; }
+
+    .grp-bar { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; margin-top: 10px; }
+    .gbtn {
+      padding: 6px 2px; border-radius: 10px; font-size: 11px; text-align: center;
+      background: rgba(255, 255, 255, 0.03); border: 1px solid var(--line); color: var(--muted);
+    }
+    .gbtn.on { background: rgba(214, 178, 124, 0.16); border-color: rgba(214, 178, 124, 0.52); color: var(--gold-hi); font-weight: 600; }
+
+    .tag-wrap { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .tchip {
+      padding: 6px 11px; border-radius: 999px; font-size: 11.5px;
+      background: rgba(255, 255, 255, 0.035); border: 1px solid var(--line); color: #d6d0c8;
+    }
+    .tchip.on { background: var(--gold); border-color: var(--gold); color: #08090c; font-weight: 600; }
+    #app.mode-income .tchip.on { background: linear-gradient(135deg, #64c495, #e5a99c); border-color: transparent; color: #07090b; }
+
+    .act-btn {
+      width: 100%; margin-top: 12px; padding: 13px 16px; border-radius: 16px;
+      background: linear-gradient(135deg, #ebd09d 0%, #c69f61 100%);
+      color: #08090c; font-size: 14px; font-weight: 600; letter-spacing: 0.05em;
+      box-shadow: 0 10px 26px rgba(214, 178, 124, 0.24);
+      display: flex; align-items: center; justify-content: center; gap: 7px;
+    }
+    #app.mode-income .act-btn {
+      background: linear-gradient(135deg, #74cca0 0%, #e5a99c 100%);
+      box-shadow: 0 10px 26px rgba(88, 184, 138, 0.22);
+    }
+    .act-btn:disabled { opacity: 0.65; }
+
+    /* 电子签购单 / 入账凭证 */
+    .slip {
+      border-radius: 18px; padding: 14px 15px;
+      background: linear-gradient(180deg, #15151d, #0d0d12);
+      border: 1px dashed rgba(214, 178, 124, 0.36);
+      animation: slipSlide 0.42s cubic-bezier(.22,1,.36,1);
+    }
+    .slip.inc { border-color: rgba(88, 184, 138, 0.44); }
+    .srow { display: flex; justify-content: space-between; gap: 10px; font-size: 11.5px; color: var(--muted); padding: 3px 0; }
+    .srow strong { color: var(--text); font-weight: 500; text-align: right; }
+    .sdiv { height: 1px; border-top: 1px dashed rgba(255, 255, 255, 0.11); margin: 8px 0; }
+
+    /* 迟川回应 + 永久语音条 + 甜腻撒娇互动区 */
+    .reply-box {
+      border-radius: 20px; padding: 14px;
+      background: linear-gradient(155deg, rgba(31, 25, 19, 0.94), rgba(14, 14, 19, 0.98));
+      border: 1px solid rgba(214, 178, 124, 0.36);
+      animation: fadeUp 0.32s ease;
+    }
+    .reply-box.inc {
+      background: linear-gradient(155deg, rgba(18, 28, 24, 0.94), rgba(22, 16, 19, 0.98));
+      border-color: rgba(88, 184, 138, 0.38);
+    }
+    .reply-box.alert {
+      background: linear-gradient(155deg, rgba(36, 17, 20, 0.95), rgba(15, 13, 17, 0.98));
+      border-color: rgba(226, 109, 114, 0.48);
+    }
+    .av {
+      width: 28px; height: 28px; border-radius: 9px; flex-shrink: 0;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 600;
+      background: #261f16; border: 1px solid rgba(214, 178, 124, 0.45); color: var(--gold-hi);
+    }
+    .rtext { margin-top: 9px; font-size: 13px; line-height: 1.68; color: #f3eee8; white-space: pre-line; }
+    .memo-tag {
+      margin-top: 8px; padding: 6px 10px; border-radius: 10px; font-size: 10.5px;
+      background: rgba(214, 178, 124, 0.1); border: 1px solid rgba(214, 178, 124, 0.22); color: var(--gold-hi);
+    }
+    .reply-box.inc .memo-tag { background: rgba(88, 184, 138, 0.12); border-color: rgba(88, 184, 138, 0.26); color: #a7e6c7; }
+    .reply-box.alert .memo-tag { background: rgba(226, 109, 114, 0.14); border-color: rgba(226, 109, 114, 0.32); color: #ffb5b8; }
+
+    /* 永久停留语音条 */
+    .vbtn {
+      margin-top: 9px; width: 100%; max-width: 248px; padding: 8px 13px; border-radius: 14px;
+      background: linear-gradient(135deg, #272017, #151414); border: 1px solid rgba(214, 178, 124, 0.4);
+      display: flex; align-items: center; justify-content: space-between; color: var(--gold-hi); font-size: 11.5px;
+    }
+    .waves { display: inline-flex; align-items: center; gap: 3px; height: 14px; }
+    .waves i { display: block; width: 2.5px; border-radius: 99px; background: currentColor; }
+    .waves i:nth-child(1){height:5px} .waves i:nth-child(2){height:12px} .waves i:nth-child(3){height:7px} .waves i:nth-child(4){height:14px} .waves i:nth-child(5){height:9px}
+    .vbtn.playing .waves i { animation: wave 0.54s ease-in-out infinite; }
+    .vbtn.playing .waves i:nth-child(2){animation-delay:.1s} .vbtn.playing .waves i:nth-child(3){animation-delay:.2s}
+    .vbtn.playing .waves i:nth-child(4){animation-delay:.3s} .vbtn.playing .waves i:nth-child(5){animation-delay:.4s}
+    .vbox {
+      margin-top: 7px; padding: 9px 11px; border-radius: 12px;
+      background: rgba(7, 7, 10, 0.78); border: 1px solid rgba(214, 178, 124, 0.24);
+      font-size: 12px; line-height: 1.64; color: #e6e1d9;
+    }
+    .vhd { display: flex; justify-content: space-between; align-items: center; font-size: 10px; color: var(--gold); margin-bottom: 4px; }
+    .vclose {
+      font-size: 10px; color: var(--muted); padding: 2px 8px; border-radius: 999px;
+      border: 1px solid var(--line); background: rgba(255,255,255,0.04);
+    }
+
+    /* 甜腻腻撒娇互动区 */
+    .sweet-sec {
+      margin-top: 12px; padding-top: 11px; border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .sweet-ttl { font-size: 11px; font-weight: 600; color: var(--rose); margin-bottom: 7px; display: flex; align-items: center; justify-content: space-between; }
+    .sweet-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+    .spill {
+      padding: 5px 10px; border-radius: 999px; font-size: 11px;
+      background: rgba(229, 169, 156, 0.11); border: 1px solid rgba(229, 169, 156, 0.32); color: #fad6ce;
+    }
+    .spill:active { background: rgba(229, 169, 156, 0.28); }
+    .sweet-form { display: flex; gap: 6px; margin-top: 8px; }
+    .sweet-send {
+      padding: 0 13px; border-radius: 12px; flex-shrink: 0; font-size: 11.5px; font-weight: 600;
+      background: linear-gradient(135deg, #eab4a8, #d6b27c); color: #0a090b;
+    }
+    .thread { display: flex; flex-direction: column; gap: 8px; margin-bottom: 9px; }
+    .bub-me {
+      align-self: flex-end; max-width: 86%; padding: 8px 11px; border-radius: 14px 14px 4px 14px;
+      background: linear-gradient(135deg, rgba(229, 169, 156, 0.22), rgba(214, 178, 124, 0.18));
+      border: 1px solid rgba(229, 169, 156, 0.35); font-size: 12px; line-height: 1.55; color: #fce9e4;
+    }
+    .bub-dad {
+      align-self: flex-start; width: 100%; padding: 9px 11px; border-radius: 14px 14px 14px 4px;
+      background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(214, 178, 124, 0.26);
+      font-size: 12.2px; line-height: 1.6; color: #f0ebe3;
+    }
+
+    /* 明细 & 偏爱账单 */
+    .stat-mini {
+      background: var(--inp); border: 1px solid var(--line); border-radius: 14px; padding: 9px 8px; text-align: center;
+    }
+    .rec-row {
+      width: 100%; text-align: left; padding: 12px 13px; border-radius: 16px;
+      background: var(--card); border: 1px solid var(--line);
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    }
+    .bar-track { width: 100%; height: 7px; border-radius: 999px; background: rgba(255,255,255,0.06); overflow: hidden; margin-top: 5px; }
+    .bar-fill { height: 100%; border-radius: 999px; transition: width 0.45s ease; }
+
+    /* 主卡核销印章 */
+    .stamp-area {
+      position: relative; border-radius: 18px; padding: 20px 14px; text-align: center;
+      background: #0b0b10; border: 1px dashed rgba(214, 178, 124, 0.34); overflow: hidden;
+    }
+    .stamp-mark {
+      display: inline-block; padding: 11px 16px; border-radius: 8px;
+      border: 2.5px solid var(--gold); color: var(--gold-hi);
+      background: radial-gradient(circle, rgba(214, 178, 124, 0.18), rgba(20, 16, 11, 0.9));
+      box-shadow: 0 0 0 3px rgba(214, 178, 124, 0.15), 0 10px 26px rgba(0,0,0,0.68);
+      transform: rotate(-5deg);
+    }
+    .stamp-mark.slam { animation: stampSlam 0.42s cubic-bezier(.18,.89,.32,1.25); }
+    .stamp-wave {
+      position: absolute; left: 50%; top: 50%; width: 92px; height: 92px; margin: -46px 0 0 -46px;
+      border-radius: 50%; border: 2px solid rgba(214, 178, 124, 0.65); pointer-events: none;
+      animation: rippleOut 0.8s ease-out forwards;
+    }
+
+    /* 抽屉弹窗 & 设置控件 */
+    #modal {
+      position: absolute; inset: 0; z-index: 80;
+      background: rgba(0, 0, 0, 0.78); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+      display: flex; align-items: flex-end; justify-content: center; padding: 12px;
+    }
+    .sheet {
+      width: 100%; max-height: 86%; overflow-y: auto; scrollbar-width: none;
+      border-radius: 24px; padding: 16px; background: #111118;
+      border: 1px solid rgba(214, 178, 124, 0.34); box-shadow: 0 -10px 40px rgba(0,0,0,0.86);
+      animation: fadeUp 0.24s ease;
+    }
+    .sheet::-webkit-scrollbar { display: none; }
+
+    .sw { width: 44px; height: 24px; border-radius: 999px; background: rgba(255,255,255,0.16); position: relative; transition: background 0.2s; flex-shrink: 0; }
+    .sw.on { background: var(--gold); }
+    .sw i { position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; border-radius: 50%; background: #09090d; transition: transform 0.2s; }
+    .sw.on i { transform: translateX(20px); }
+    .btn {
+      width: 100%; padding: 10px 12px; border-radius: 13px; font-size: 12px; font-weight: 500; text-align: center;
+      background: rgba(255,255,255,0.05); border: 1px solid var(--line); color: var(--text);
+    }
+    .btn.gold { background: var(--gold); border-color: var(--gold); color: #08090c; font-weight: 600; }
+    .btn.soft { background: rgba(214, 178, 124, 0.12); border-color: rgba(214, 178, 124, 0.36); color: var(--gold-hi); }
+    .btn.red  { background: rgba(226, 109, 114, 0.12); border-color: rgba(226, 109, 114, 0.36); color: #ffafb3; }
+    .lbl { display: block; font-size: 11px; color: #d0cabf; margin-bottom: 5px; }
+
+    #toast {
+      position: absolute; left: 50%; bottom: calc(74px + env(safe-area-inset-bottom)); z-index: 95;
+      transform: translate(-50%, 16px); opacity: 0; pointer-events: none;
+      padding: 8px 14px; border-radius: 999px; white-space: nowrap;
+      background: rgba(22, 22, 30, 0.96); border: 1px solid rgba(214, 178, 124, 0.42);
+      font-size: 11.5px; color: var(--gold-hi); box-shadow: 0 10px 28px rgba(0,0,0,0.75);
+      transition: transform 0.25s ease, opacity 0.25s ease;
+    }
+    #toast.show { transform: translate(-50%, 0); opacity: 1; }
+
+    @keyframes shimmerIdle { 0%,70% { left: -65%; } 100% { left: 135%; } }
+    @keyframes shimmerBurst { from { left: -60%; } to { left: 140%; } }
+    @keyframes nfcPulse { 0% { box-shadow: 0 0 0 0 rgba(214,178,124,0.72); } 55% { box-shadow: 0 0 0 12px rgba(214,178,124,0.1); } 100% { box-shadow: 0 18px 40px rgba(0,0,0,0.72); } }
+    @keyframes slipSlide { from { opacity: 0; transform: translateY(-16px) scaleY(0.92); } to { opacity: 1; transform: translateY(0) scaleY(1); } }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes wave { 0%,100% { transform: scaleY(0.35); opacity: 0.55; } 50% { transform: scaleY(1.28); opacity: 1; } }
+    @keyframes stampSlam { 0% { opacity: 0; transform: scale(2.15) rotate(-14deg); } 74% { opacity: 1; transform: scale(0.92) rotate(-4deg); } 100% { transform: scale(1) rotate(-5deg); } }
+    @keyframes rippleOut { from { transform: scale(0.5); opacity: 0.85; } to { transform: scale(2.9); opacity: 0; } }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <!-- 顶部栏 -->
+    <header class="topbar">
+      <div class="brand">
+        <span class="dot"></span>
+        <span class="brand-name">CYRUS · 迟川黑卡</span>
+        <span id="eng-pill" class="pill-eng">本地超全词库</span>
+      </div>
+      <button id="snd-btn" type="button" class="snd-btn" aria-label="切换拟真音效"></button>
+    </header>
+
+    <!-- 实时银行 / 小金库推送横幅 -->
+    <div id="banner">
+      <div class="row" style="font-size:10.5px">
+        <span id="ban-title" style="font-weight:600;color:var(--gold-hi)">新岚私人银行 · 动账秒批</span>
+        <span style="color:var(--muted)">刚刚</span>
+      </div>
+      <div id="ban-body" style="font-size:12px;color:#f3eee8;margin-top:4px;line-height:1.48"></div>
+    </div>
+
+    <!-- 中间可滚动主内容区 -->
+    <main id="main" class="main">
+
+      <!-- ==================== TAB 1: 刷卡 / 入账 ==================== -->
+      <section id="tab-pos" class="stack">
+        <!-- 收支模式切换 -->
+        <div class="seg">
+          <button id="seg-exp" type="button" class="seg-btn exp-on">刷爸爸的副卡 · 支出</button>
+          <button id="seg-inc" type="button" class="seg-btn">宝宝小金库 · 收入</button>
+        </div>
+
+        <!-- 动态互动卡面 -->
+        <div id="lux-card" class="lux-card"></div>
+
+        <!-- POS / 入账控制台 -->
+        <div class="card">
+          <div class="row" style="margin-bottom:8px">
+            <span id="form-ttl" class="sec-t">POS 贴卡记账</span>
+            <span id="form-sub" class="sec-s">每笔均由迟川主卡全额承担</span>
+          </div>
+
+          <div class="amt-wrap">
+            <span class="amt-sym">¥</span>
+            <input id="f-amt" class="amt-inp" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0.00">
+          </div>
+          <div id="q-amts" class="hscroll" style="margin-top:8px"></div>
+
+          <div class="stack" style="gap:8px;margin-top:10px">
+            <input id="f-title" class="inp" type="text" autocomplete="off" placeholder="买了什么？（如：芒果冰 / 动车票 / 麻辣火锅 / 买药）">
+            <input id="f-note" class="inp" type="text" autocomplete="off" placeholder="选填心情或想对爸爸说的话（如：刚买了超好吃的甜品）">
+          </div>
+
+          <div id="exp-grps" class="grp-bar"></div>
+          <div id="cat-tags" class="tag-wrap"></div>
+
+          <button id="submit-btn" type="button" class="act-btn"></button>
+        </div>
+
+        <!-- 实时签购单 / 入账单 + 迟川回复 + 甜腻撒娇互动区 -->
+        <div id="pos-out" class="stack hidden"></div>
+      </section>
+
+      <!-- ==================== TAB 2: 明细 ==================== -->
+      <section id="tab-ledger" class="stack hidden">
+        <div class="card">
+          <div class="g3">
+            <div class="stat-mini">
+              <div class="sec-s">本月支出</div>
+              <div id="ld-exp" style="font-size:13.5px;font-weight:600;color:var(--gold-hi);margin-top:3px;font-variant-numeric:tabular-nums">¥0.00</div>
+            </div>
+            <div class="stat-mini">
+              <div class="sec-s">本月收入</div>
+              <div id="ld-inc" style="font-size:13.5px;font-weight:600;color:#9ae0be;margin-top:3px;font-variant-numeric:tabular-nums">¥0.00</div>
+            </div>
+            <div class="stat-mini">
+              <div class="sec-s">本月净留存</div>
+              <div id="ld-net" style="font-size:13.5px;font-weight:600;color:var(--rose);margin-top:3px;font-variant-numeric:tabular-nums">¥0.00</div>
+            </div>
+          </div>
+          <input id="ld-q" class="inp" style="margin-top:10px" type="text" autocomplete="off" placeholder="搜索项目名、备注或分类标签…">
+          <div id="ld-tabs" class="hscroll" style="margin-top:9px"></div>
+        </div>
+        <div id="ld-list" class="stack" style="gap:8px"></div>
+      </section>
+
+      <!-- ==================== TAB 3: 偏爱账单 ==================== -->
+      <section id="tab-stmt" class="stack hidden">
+        <div class="card">
+          <div class="row">
+            <button id="m-prev" type="button" class="badge bg-dim" style="padding:5px 11px">‹ 上月</button>
+            <div id="m-lbl" style="font-size:14.5px;font-weight:600;color:var(--gold-hi);font-variant-numeric:tabular-nums">2026年11月</div>
+            <button id="m-next" type="button" class="badge bg-dim" style="padding:5px 11px">下月 ›</button>
+          </div>
+          <div class="g2" style="margin-top:13px">
+            <div class="stat-mini" style="text-align:left;padding:11px 12px">
+              <div class="sec-s">主卡兜底支出</div>
+              <div id="st-exp" style="font-size:18px;font-weight:500;color:var(--gold-hi);margin-top:3px;font-variant-numeric:tabular-nums">¥0.00</div>
+            </div>
+            <div class="stat-mini" style="text-align:left;padding:11px 12px;border-color:rgba(88,184,138,0.28)">
+              <div class="sec-s">宝宝小金库入账</div>
+              <div id="st-inc" style="font-size:18px;font-weight:500;color:#9ae0be;margin-top:3px;font-variant-numeric:tabular-nums">¥0.00</div>
+            </div>
+          </div>
+          <div style="margin-top:10px;padding:12px;border-radius:15px;background:linear-gradient(135deg,rgba(88,184,138,0.1),rgba(229,169,156,0.1));border:1px solid rgba(229,169,156,0.28)">
+            <div class="row">
+              <span style="font-size:11.5px;color:#f7d5cd;font-weight:500">宝宝净留存（100% 归你）</span>
+              <span id="st-net" style="font-size:20px;font-weight:600;color:#b8eed3;font-variant-numeric:tabular-nums">¥0.00</span>
+            </div>
+            <div style="font-size:10.5px;color:var(--muted);margin-top:5px;line-height:1.5">
+              副卡账单由迟川主卡全额承担，你的收入 100% 留归个人小金库
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="row" style="margin-bottom:9px">
+            <span class="sec-t">副卡支出分布</span>
+            <span id="st-exp-cnt" class="sec-s">0 笔</span>
+          </div>
+          <div id="st-exp-bars" class="stack" style="gap:9px"></div>
+        </div>
+
+        <div class="card">
+          <div class="row" style="margin-bottom:9px">
+            <span class="sec-t">小金库收入来源</span>
+            <span id="st-inc-cnt" class="sec-s">0 笔</span>
+          </div>
+          <div id="st-inc-bars" class="stack" style="gap:9px"></div>
+        </div>
+
+        <div class="reply-box">
+          <div class="row">
+            <div style="display:flex;align-items:center;gap:8px">
+              <span class="av">迟</span>
+              <div>
+                <div style="font-size:12.5px;font-weight:600;color:var(--gold-hi)">迟川 · 月度偏爱批注</div>
+                <div id="st-sweet-stat" class="sec-s">本月互动汇总</div>
+              </div>
+            </div>
+            <span class="badge bg-gold">主卡复核</span>
+          </div>
+          <div id="st-review" class="rtext"></div>
+        </div>
+
+        <div class="card">
+          <div class="row" style="margin-bottom:10px">
+            <span class="sec-t">主卡核销签章</span>
+            <span id="st-stamp-bdg" class="badge bg-dim">待盖章核销</span>
+          </div>
+          <div id="stamp-area" class="stamp-area"></div>
+        </div>
+      </section>
+
+      <!-- ==================== TAB 4: 设置 ==================== -->
+      <section id="tab-set" class="stack hidden">
+        <div class="card">
+          <div class="row">
+            <div>
+              <div class="sec-t">拟真音效中心（Web Audio）</div>
+              <div class="sec-s" style="margin-top:2px">零外链纯代码合成 · 关闭 iPhone 侧边静音键聆听</div>
+            </div>
+            <button id="sw-snd" type="button" class="sw on" aria-label="音效总开关"><i></i></button>
+          </div>
+          <div class="g2" style="margin-top:11px">
+            <button type="button" data-sfx="swipe" class="btn soft">刷卡音</button>
+            <button type="button" data-sfx="print" class="btn soft">小票音</button>
+            <button type="button" data-sfx="income" class="btn soft">入账音</button>
+            <button type="button" data-sfx="sweet" class="btn soft">撒娇音</button>
+          </div>
+          <button type="button" data-sfx="stamp" class="btn soft" style="margin-top:8px">落印音（主卡盖章）</button>
+        </div>
+
+        <div class="card">
+          <div class="row">
+            <div>
+              <div class="sec-t">Gemini API 双引擎</div>
+              <div class="sec-s" style="margin-top:2px">开启后支出、收入与撒娇对话均可实时生成</div>
+            </div>
+            <button id="sw-ai" type="button" class="sw" aria-label="开启 Gemini API"><i></i></button>
+          </div>
+          <div class="stack" style="gap:9px;margin-top:12px">
+            <div>
+              <label class="lbl">Google AI Studio API Key（仅存本机 localStorage）</label>
+              <div style="display:flex;gap:6px">
+                <input id="api-key" class="inp" type="password" autocomplete="off" placeholder="粘贴你的 AIzaSy... 免费密钥">
+                <button id="api-eye" type="button" class="badge bg-gold" style="padding:0 12px;border-radius:12px">显示</button>
+              </div>
+            </div>
+            <div>
+              <label class="lbl">模型选择</label>
+              <select id="api-model" class="inp">
+                <option value="gemini-2.5-flash">gemini-2.5-flash（推荐）</option>
+                <option value="gemini-2.5-pro">gemini-2.5-pro</option>
+                <option value="gemini-2.0-flash">gemini-2.0-flash</option>
+              </select>
+            </div>
+            <div class="g2">
+              <button id="api-save" type="button" class="btn gold">保存配置</button>
+              <button id="api-test" type="button" class="btn">测试连接</button>
+            </div>
+            <div id="api-log" style="font-size:11px;color:var(--muted);line-height:1.5;min-height:15px"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="row">
+            <div>
+              <div class="sec-t">当前副卡单日额度</div>
+              <div id="set-lim-val" style="font-size:18px;font-weight:500;color:var(--gold-hi);margin-top:2px;font-variant-numeric:tabular-nums">¥500,000</div>
+            </div>
+            <button id="lim-reset" type="button" class="badge bg-gold" style="padding:6px 12px">重置为 ¥500,000</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="sec-t" style="margin-bottom:10px">账本数据备份与管理</div>
+          <div class="g2">
+            <button id="btn-exp-json" type="button" class="btn soft">复制 / 导出 JSON</button>
+            <button id="btn-imp-json" type="button" class="btn">导入 JSON 恢复</button>
+          </div>
+          <button id="btn-clear-all" type="button" class="btn red" style="margin-top:8px">清空全部记录</button>
+          <div class="sec-s" style="margin-top:10px;line-height:1.55">
+            XINLAN PRIVATE · 迟川黑金副卡（iPhone 14 Pro 全屏 PWA 版）<br>
+            所有账单、甜话互动、盖章与密钥均仅保存在本机浏览器本地。
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- 底部 4 标签导航栏 -->
+    <nav class="tabbar">
+      <button type="button" data-tab="pos" class="tbtn active"></button>
+      <button type="button" data-tab="ledger" class="tbtn"></button>
+      <button type="button" data-tab="stmt" class="tbtn"></button>
+      <button type="button" data-tab="set" class="tbtn"></button>
+    </nav>
+
+    <!-- 通用底部抽屉弹窗 -->
+    <div id="modal" class="hidden"></div>
+    <!-- 轻提示 Toast -->
+    <div id="toast"></div>
+  </div>
+
+  <script>
+    /* =========================================================================
+       1. iPhone 14 Pro Standalone PWA 真实物理屏高自适应（彻底消除底部 59px 黑边）
+       ========================================================================= */
+    function syncViewportHeight() {
+      const isStandalone = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
+      const ae = document.activeElement;
+      const kbdOpen = ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.tagName === 'SELECT');
+      let h = window.innerHeight;
+      if (kbdOpen && window.visualViewport) {
+        h = window.visualViewport.height;
+      } else if (isStandalone && window.innerHeight >= window.innerWidth) {
+        h = Math.max(window.innerHeight, window.screen.height);
+      }
+      document.documentElement.style.setProperty('--app-h', h + 'px');
+    }
+    syncViewportHeight();
+    window.addEventListener('resize', syncViewportHeight);
+    window.addEventListener('orientationchange', () => { syncViewportHeight(); setTimeout(syncViewportHeight, 260); });
+    if (window.visualViewport) window.visualViewport.addEventListener('resize', syncViewportHeight);
+
+    /* =========================================================================
+       2. 轻量内联 SVG 图标 & 纯 Web Audio API 五大拟真音效合成器
+       ========================================================================= */
+    const SVG_MAP = {
+      pos: '<rect x="2.5" y="5.5" width="19" height="13" rx="2.5"/><path d="M2.5 10h19M6.5 14.5h4"/>',
+      ledger: '<path d="M5 4h14v16l-2.3-1.6L14.4 20 12 18.4 9.6 20l-2.3-1.6L5 20V4z"/><path d="M8.5 9h7M8.5 13h5"/>',
+      stmt: '<path d="M4 20h16"/><path d="M6 16v-4M12 16V8M18 16v-6"/>',
+      set: '<circle cx="12" cy="12" r="3"/><path d="M12 2.5v2.2M12 19.3v2.2M4.9 4.9l1.6 1.6M17.5 17.5l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.9 19.1l1.6-1.6M17.5 6.5l1.6-1.6"/>',
+      sndOn: '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/>',
+      sndOff: '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="22" y1="9" x2="16" y2="15"/><line x1="16" y1="9" x2="22" y2="15"/>',
+      nfc: '<path d="M6 8.3a6.5 6.5 0 0 1 0 7.4M10 6a10 10 0 0 1 0 12M14 4a13.5 13.5 0 0 1 0 16"/>',
+      vault: '<path d="M12 3l8 4v6c0 4.5-3.4 7.8-8 9-4.6-1.2-8-4.5-8-9V7l8-4z"/><path d="M9.5 12.2l1.8 1.8 3.6-3.8"/>'
+    };
+    const ic = (k, s = 18) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round">${SVG_MAP[k] || ''}</svg>`;
+
+    let audioCtx = null;
+    function getAC() {
+      if (!ST.cfg.sound) return null;
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        return audioCtx;
+      } catch { return null; }
+    }
+    function tone(ac, freq, delay, dur, gain, type = 'sine') {
+      const t = ac.currentTime + delay;
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.type = type; o.frequency.setValueAtTime(freq, t);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.linearRampToValueAtTime(gain, t + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(g); g.connect(ac.destination);
+      o.start(t); o.stop(t + dur + 0.02);
+    }
+    function noiseBurst(ac, sec) {
+      const len = Math.floor(ac.sampleRate * sec);
+      const buf = ac.createBuffer(1, len, ac.sampleRate);
+      const ch = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) ch[i] = Math.random() * 2 - 1;
+      return buf;
+    }
+
+    function playSwipeSound() {
+      const ac = getAC(); if (!ac) return;
+      tone(ac, 1480, 0.01, 0.075, 0.14, 'sine');
+      tone(ac, 2093, 0.095, 0.16, 0.13, 'sine');
+    }
+    function playPrintSound() {
+      const ac = getAC(); if (!ac) return;
+      [0, 0.065, 0.13, 0.195, 0.27, 0.34, 0.42].forEach((dl, i) => {
+        const t = ac.currentTime + dl + 0.01;
+        const src = ac.createBufferSource(); src.buffer = noiseBurst(ac, 0.048);
+        const f = ac.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = 2.4;
+        f.frequency.setValueAtTime(i === 6 ? 1750 : 2850 + (i % 2) * 480, t);
+        const g = ac.createGain();
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.linearRampToValueAtTime(0.075, t + 0.006);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.044);
+        src.connect(f); f.connect(g); g.connect(ac.destination);
+        src.start(t); src.stop(t + 0.048);
+      });
+    }
+    function playIncomeSound() {
+      const ac = getAC(); if (!ac) return;
+      tone(ac, 587.33, 0.01, 0.18, 0.1, 'triangle');
+      tone(ac, 880.00, 0.09, 0.22, 0.1, 'triangle');
+      tone(ac, 1174.66, 0.17, 0.34, 0.11, 'sine');
+      tone(ac, 1760.00, 0.17, 0.28, 0.04, 'sine');
+    }
+    function playSweetSound() {
+      const ac = getAC(); if (!ac) return;
+      // 轻柔双和弦 + 暖心低频轻跳
+      tone(ac, 783.99, 0.01, 0.22, 0.09, 'sine');
+      tone(ac, 1046.50, 0.10, 0.3, 0.095, 'sine');
+      const t = ac.currentTime + 0.04;
+      const hb = ac.createOscillator(), g = ac.createGain();
+      hb.type = 'sine'; hb.frequency.setValueAtTime(92, t); hb.frequency.exponentialRampToValueAtTime(44, t + 0.14);
+      g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.22, t + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
+      hb.connect(g); g.connect(ac.destination); hb.start(t); hb.stop(t + 0.18);
+    }
+    function playStampSound() {
+      const ac = getAC(); if (!ac) return;
+      const t = ac.currentTime + 0.01;
+      const o = ac.createOscillator(), lp = ac.createBiquadFilter(), g = ac.createGain();
+      o.type = 'sine'; o.frequency.setValueAtTime(142, t); o.frequency.exponentialRampToValueAtTime(36, t + 0.17);
+      lp.type = 'lowpass'; lp.frequency.value = 185;
+      g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.46, t + 0.008); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.22);
+      o.connect(lp); lp.connect(g); g.connect(ac.destination); o.start(t); o.stop(t + 0.24);
+      const src = ac.createBufferSource(); src.buffer = noiseBurst(ac, 0.07);
+      const nl = ac.createBiquadFilter(); nl.type = 'lowpass'; nl.frequency.value = 500;
+      const ng = ac.createGain(); ng.gain.setValueAtTime(0.11, t); ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.065);
+      src.connect(nl); nl.connect(ng); ng.connect(ac.destination); src.start(t); src.stop(t + 0.07);
+    }
+    function playTap() { const ac = getAC(); if (ac) tone(ac, 540, 0.005, 0.035, 0.04, 'sine'); }
+    function playVoiceTick() { const ac = getAC(); if (ac) { tone(ac, 620, 0.01, 0.07, 0.08); tone(ac, 920, 0.07, 0.1, 0.065); } }
+
+    /* =========================================================================
+       3. 分类体系（支出 5大类19标签 + 收入 6标签）与超全本地词库
+       ========================================================================= */
+    const EXP_GROUPS = [
+      { id: 'food', name: '餐饮味觉', color: '#d6b27c', tags: ['酸味', '甜品奶茶', '苦咖啡茶', '辣味重口', '正餐夜宵', '面包烘焙', '牛肉海鲜'] },
+      { id: 'travel', name: '出行交通', color: '#8ab4d4', tags: ['动车高铁', '公交地铁', '打车网约车', '自驾航班'] },
+      { id: 'wear', name: '服饰美妆', color: '#e5a99c', tags: ['衣服鞋包', '美妆护肤', '饰品小物'] },
+      { id: 'home', name: '居家医疗', color: '#e26d72', tags: ['超市日用', '医疗买药', '水电居住'] },
+      { id: 'fun', name: '休闲其他', color: '#9cc7a6', tags: ['电影影音', '礼物其他'] }
+    ];
+    const INC_TAGS = [
+      { tag: '工资薪资', color: '#58b88a' },
+      { tag: '出闲置', color: '#86cba9' },
+      { tag: '收到转账', color: '#e5a99c' },
+      { tag: '奖金绩效', color: '#d6b27c' },
+      { tag: '理财收益', color: '#8ab4d4' },
+      { tag: '其他入账', color: '#b4a8c9' }
+    ];
+    const TAG_TO_GRP = {};
+    EXP_GROUPS.forEach(g => g.tags.forEach(t => { TAG_TO_GRP[t] = g; }));
+
+    const R = (reply, voice, memo, alert = false) => ({ reply, voice, memo, alert });
+
+    // 13 组高优先级支出关键词词库
+    const EXP_KW = [
+      { id: 'meds', re: /买药|医院|发烧|痛|感冒|胃药|诊所|药店|布洛芬|挂号|体检|过敏|止痛/, pool: [
+        R('看到药房和医院动账我的心立刻悬起来了。宝宝现在哪里不舒服？把症状和药名拍给我，我马上请方医生核对用量。下午的会我先延后，你喝杯温水坐着别硬撑。', '（放下钢笔，语速微快）琰琰，怎么去买药了？先别自己扛着，告诉我哪里不舒服，需要的话爸爸现在就过去接你。', '紧急关切 · 方医生待命', true),
+        R('身体不舒服任何事都要往后排。按医嘱温水服药，我已经把今晚应酬全部清空，早点回去陪着你。要是头晕或者肚子疼，立刻打给我。', '（声音放得很稳很轻）别怕，慢慢来。结果和感受随时告诉爸爸，我一直在看手机。', '高优先级 · 已清空晚间安排', true)
+      ]},
+      { id: 'train', re: /动车|高铁|12306|车票|火车|二等座|动卧/, pool: [
+        R('车次发我一份，宝宝。千万别选夹在陌生人中间的 B 座，直接刷我的卡改签商务座或者靠窗一等座，空间松快些也能安心眯一会儿。到站我提前把接站的车安排妥当。', '（在备忘录记下行程）车厢冷气偏足，包里带件薄外套。坐稳了发个车厢号给爸爸，我算好时间去接你。', '铁道出行 · 避开中间 B 座提醒'),
+        R('高铁票秒批了。候车厅人多看好随身包，上车前顺手买瓶温热的水带着。不舒服的座位直接升舱，不必替我省这点差价。', '路上信号时断时续，不用急着回我，靠窗舒舒服服歇着，快到站再喊爸爸。', '行程同步 · 接站准备')
+      ]},
+      { id: 'bus', re: /公交|地铁|乘车码|轻轨|巴士|通卡/, pool: [
+        R('高峰期公交地铁人挤得很，宝宝一定站稳抓好扶手，把包护在身前。要是站累了或者拎了重东西，随时下车刷我的卡叫舒适专车。', '看到乘车码扣款就担心你被人群挤着。累了就别硬挤，下一程直接打车，听爸爸的话。', '日常通勤 · 防挤关怀'),
+        R('坐公交留意站名，别低头看太久手机容易晕车。上下台阶注意脚下，安安稳稳到了地方给我报个平安。', '外面风大，等车往站台里侧站一点，到目的地给我发个消息。', '平安出行 · 实时关注')
+      ]},
+      { id: 'taxi', re: /打车|滴滴|专车|网约车|出租|高德|礼橙/, pool: [
+        R('出门打车最省心，少吹风少走远路。顺手把车牌尾号和实时行程发给爸爸，后排系好安全带歇会儿，安全进门前跟我说一声。', '（盯了一眼手机屏幕）车牌发过来我帮你看着路线，宝宝在后排闭目养神几分钟就好。', '安全报备 · 行程实时盯守'),
+        R('专车账单已秒批。车里闷的话礼貌让司机开一点窗，下车记得摸一下手机和钥匙别落在座位上，我在手机这边等你报平安。', '选评分高、车况干净的专车就行，爸爸开着提醒等你稳稳到家。', '出行守护 · 主卡秒批')
+      ]},
+      { id: 'bread', re: /面包|吐司|可颂|贝果|蛋糕|烘焙|法棍|碱水/, pool: [
+        R('虽然我对麸质过敏没法陪你分着吃，但每次闻到刚出炉的面包焦香，总觉得特别暖。宝宝挑最松软香甜的那块，多替爸爸尝两口。', '（轻笑一声）我碰不了小麦面粉，但看你吃得开心比我自己吃到还满足。记得配杯热饮，别干噎着。', '麸质过敏彩蛋 · 专属宠爱'),
+        R('这家烘焙坊出炉的味道合口吗？好吃的话记下名字，下回我顺路去给你多带一袋刚出炉的，顺便继续琢磨我的无麸质配方。', '刚烤好的面包最治愈，趁热吃两口，喜欢哪款发给爸爸存进备忘录。', '烘焙笔记 · 已写入备忘录')
+      ]},
+      { id: 'beefsea', re: /牛肉|刺身|海鲜|牛排|和牛|肠粉|熟腌|虾|蟹|三文鱼|日料/, pool: [
+        R('你挑的这一口正合我的心意。牛肉和海鲜多吃点补足体力，刺身记得看清新不新鲜、别贪凉配冰饮。这家出品稳的话，周末爸爸带你再去吃一顿。', '（语气明显松快愉悦）真会挑，宝宝。爱吃的菜尽管点，喜欢的店铺名字记下来，下次我们一起点。', '共同口味彩蛋 · 周末备选'),
+        R('看到牛肉海鲜账单我就踏实了，胃口不错。配一碗热汤暖暖胃，吃得舒舒服服的最值。', '熟腌、肠粉和厚切牛肉都是咱们俩偏爱的，刷我的卡直接点招牌。', '美食地图 · 已收藏')
+      ]},
+      { id: 'sour', re: /酸|柠檬|话梅|酸奶|百香果|山楂|酸辣|杨梅|醋/, pool: [
+        R('挑了酸口的东西，今天是不是觉得有点腻想开开胃？酸爽的吃着提神，别空腹吃太多，吃完喝口温水漱漱口护护牙。', '开胃了就多补两口热乎正餐，宝宝，慢慢吃别急。', '食味细节 · 护齿提醒')
+      ]},
+      { id: 'sweet', re: /甜|奶茶|芒果冰|冰淇淋|布丁|巧克力|糖|果茶|杨枝甘露|芋泥/, pool: [
+        R('甜品奶茶账单秒批。冷饮的话尽量少冰、小口慢慢抿，别凉着胃。好喝的话告诉我店名和甜度，爸爸记在《关于迟琰》里，下次顺路给你带。', '（语气温软）累了来一口甜的最解乏，宝宝开心吃甜，不必算热量。', '食味备忘 · 甜度归档')
+      ]},
+      { id: 'bitter', re: /苦|咖啡|美式|拿铁|浓缩|凉茶|黑巧|生椰/, pool: [
+        R('点咖啡提神了？是不是昨晚没睡够或者今天事太多？千万先垫两口东西再喝，别空腹灌咖啡伤胃，忙完这一段早点歇着。', '（轻声关切）别硬靠咖啡因撑着，宝宝。晚上回去爸爸帮你松松肩颈，早点睡。', '作息关怀 · 提醒勿空腹')
+      ]},
+      { id: 'spicy', re: /辣|火锅|麻辣烫|烧烤|串串|川菜|湘菜|螺蛳粉|烤鱼/, pool: [
+        R('馋辣了就痛快解解馋，手边备一杯常温牛奶或温水压一压，护着胃吃才最过瘾。吃完别马上喝冰水，也别迎风吹着凉。', '（满是纵容）隔着账单都闻见香了，宝宝多夹青菜和肉垫肚子，慢慢吃别烫嘴。', '嗜辣护胃 · 纵容秒批')
+      ]},
+      { id: 'midnight', re: /宵夜|夜宵|烧烤摊|深夜/, pool: [
+        R('半夜饿了就吃点热乎好消化的，绝不能硬饿着睡。挑温热不油腻的，吃完坐二十分钟再躺下，拿外卖开门记得注意安全。', '（低沉温柔）怎么这个点饿了？慢点吃，爸爸醒着陪你聊两句。', '深夜护胃 · 安全提醒', true)
+      ]},
+      { id: 'wear', re: /裙子|大衣|鞋|包包|口红|香水|护肤|面膜|耳环|项链|戒指|衣服|毛衣/, pool: [
+        R('你的审美一直很精准，挑中喜欢的款式和色号直接拿下就行，完全不必看标价。贴身穿的衣物挑最亲肤柔软的面料，冬天暖和最要紧。', '好看的东西本就用来取悦宝宝的，穿着开心最划算，回去穿给爸爸当第一个观众。', '审美认证 · 无限支持')
+      ]},
+      { id: 'home', re: /多肉|鲜花|绿植|香薰|床品|台灯|抱枕|水电|房租/, pool: [
+        R('给家里添置的小物件最让人踏实。鲜花绿植拿回去可以摆在南阳台光照稳的地方，我顺手和书房那几盆多肉一起照料；水电固定账单也可以直接转我主卡代扣。', '一点点把住的地方填满你喜欢的温度，这种稳稳过日子的感觉真好。', '居家蓝图 · 阳台位预留')
+      ]}
+    ];
+
+    // 19 个支出标签专属回复库
+    const EXP_TAG_MAP = {
+      '酸味': [
+        R('酸爽开胃的账单收到。合胃口就慢慢品，记得别空腹吃太酸，吃完喝两口温水润润喉。', '挑自己顺口的吃最舒服，开胃了记得再补点热主食。', '味觉偏好 · 酸口记录'),
+        R('今天偏爱酸甜清爽的？解腻提神刚好，喜欢哪家告诉我，爸爸帮你收进美食清单。', '（语气温和）宝宝吃得顺心，账单看着也舒心。', '食味备忘 · 已同步')
+      ],
+      '甜品奶茶': [
+        R('甜品奶茶我永远秒批。选少冰或温热护着胃，喜欢哪款小料告诉我，下次下班顺路给宝宝买。', '忙里偷闲喝杯甜的正好松口气，慢慢喝别急。', '甜品清单 · 已更新'),
+        R('捧着热乎或清甜的饮品最治愈。别替我省，挑最合你心意的那杯点。', '宝宝开心吃甜，就是这张副卡最有价值的用途。', '日常偏爱 · 主卡秒批')
+      ],
+      '苦咖啡茶': [
+        R('喝咖啡或茶提神记得先吃两口垫肚子，别空腹伤胃。下午太晚就别喝太浓，免得晚上睡不好。', '（声线沉稳温柔）辛苦了宝宝，累了就眯十分钟，别拿睡眠换进度。', '作息提示 · 护胃关怀'),
+        R('苦味饮品提完神，顺手配块小甜点中和一下。今天别熬太晚，晚上爸爸陪你放松。', '喝完这杯就放慢一点节奏，万事有我托底。', '疲劳度关注 · 已记录')
+      ],
+      '辣味重口': [
+        R('解馋吃辣很痛快，记得手边放杯温水或常温牛奶护胃，多夹肉和青菜垫底。', '吃得过瘾就好，宝宝慢点吃别烫着嘴。', '嗜辣护胃 · 纵容核准'),
+        R('这笔红油鲜香的账单已秒批。吃饱喝足歇十分钟再吹风，晚上回家给你备温蜂蜜水。', '（轻笑）偶尔痛快吃顿辣的，什么小郁闷都能散掉。', '食味档案 · 偏爱批复')
+      ],
+      '正餐夜宵': [
+        R('按时吃顿扎扎实实的热乎饭比什么都重要。点你最爱吃的菜，千万别凑合着吃两口就放下。', '看到正餐动账我心里就安稳，慢慢吃不用急着回消息。', '营养达标 · 安心核销'),
+        R('这顿吃得合口吗？吃饱才有力气开心。要是晚了，记得别吃太撑，过会儿再躺下。', '这家味道要是出色，周末爸爸陪你再去吃一顿。', '正餐记录 · 已建档')
+      ],
+      '面包烘焙': [
+        R('我对麸质过敏碰不了麦香，但看宝宝买刚出炉的面包特别开心。挑最松软香甜的多吃两口。', '虽然我吃不了小麦面粉，但我正悄悄打磨无麸质配方，做好了第一时间端给你。', '麸质过敏彩蛋 · 烘焙备忘'),
+        R('烘焙店刚出炉的香气最能抚平疲惫。配杯热牛奶或者热饮慢慢吃，别噎着。', '喜欢哪款告诉我，爸爸记下来下回顺路给你带。', '烘焙偏好 · 已入备忘')
+      ],
+      '牛肉海鲜': [
+        R('牛肉和海鲜正好都是咱们俩偏爱的口味。注意海鲜新鲜度、别配太冰的饮品，多吃两口补体力。', '（心情明显很好）会挑食谱，宝宝。下次我们一起去吃厚切和牛和刺身。', '共同口味 · 蓝图约会备选'),
+        R('这笔高蛋白大餐刷得漂亮。热汤配海鲜最养人，舒舒服服享用。', '吃得尽兴最重要，主卡全额兜底。', '美食偏爱 · 已收藏')
+      ],
+      '动车高铁': [
+        R('车次和时间发我一份，宝宝。别挤中间 B 座，直接刷副卡选商务座或靠窗一等座，到站我来安排接送。', '车厢冷气足记得带件轻外套，坐稳发车了给爸爸发个消息。', '铁道出行 · 避开 B 座提醒'),
+        R('高铁票已秒批。一路平平安安，靠窗歇会儿，快到站前半小时喊爸爸。', '出门在外挑最舒服的座位，不用替我省。', '行程守护 · 接站准备')
+      ],
+      '公交地铁': [
+        R('早晚高峰人挤人，宝宝抓稳扶手护好随身包。站累了随时下车打专车，不用硬挤全程。', '注意脚下缝隙和上下车人流，顺利下车了告诉我一声。', '通勤关怀 · 防挤提醒'),
+        R('哪怕两三块钱的乘车码扣款，收到提醒也像知道你此刻正平安在路上。到站慢点走。', '天凉风硬，等车往里站一点，安全第一。', '平安追踪 · 在线关注')
+      ],
+      '打车网约车': [
+        R('打车省心又安全，车牌号和行程分享发我一份。后排系好安全带歇会儿，进门报声平安。', '别省车费，挑车况干净、评分高的专车坐，爸爸盯着手机等你到家。', '安全护航 · 实时在线'),
+        R('刮风下雨或者走累了，随时抬手刷副卡叫车。下车前摸一下手机钥匙别忘在后排。', '路堵就放首歌听听别心急，安全抵达最要紧。', '专车出行 · 随叫随刷')
+      ],
+      '自驾航班': [
+        R('航班号或行程发我一份，我提前核对天气和落地接送。长途飞行直接选宽敞舒适的舱位，进酒店记得反锁门链。', '起降时耳压不舒服就嚼颗糖，落地第一件事给爸爸报声平安。', '商旅级护航 · 行程同步'),
+        R('自驾注意保持车距、别疲劳驾驶，服务区记得下车活动喝口热水。一切以平安舒适为先。', '你去过的喜欢的地方都记下来，以后爸爸陪你慢慢再去住几天。', '远行蓝图 · 安全核验')
+      ],
+      '衣服鞋包': [
+        R('看中合身好看的就直接拿下，鞋子尤其挑不磨脚的，冬天衣物多选柔软保暖的羊绒棉麻。', '你的眼光一直很稳，买完拎着重直接叫专车回家。', '衣饰美学 · 主卡全额承保'),
+        R('副卡就是让你随时添置心仪物件的。下次穿这件新衣服出门，让爸爸当第一个夸你的人。', '喜欢就收进衣柜，完全不必看标价。', '衣柜更新 · 秒批核销')
+      ],
+      '美妆护肤': [
+        R('用在脸上的护肤品挑温和滋润的专柜款，换季干燥多备些保湿修护的，用完前提前补货。', '认真护肤和打扮自己是很棒的仪式感，宝宝怎么开心怎么买。', '护肤清单 · 换季关怀'),
+        R('新色号和好物挑开心就好。不过再贵的护肤品也比不上睡个好觉，今晚早点歇着。', '不管素颜还是带妆，在我眼里迟琰一直很动人。', '美妆档案 · 已核准')
+      ],
+      '饰品小物': [
+        R('精致贴身的小饰品配你再合适不过。挑你戴着称心、看着顺眼的，收在梳妆台最顺手的位置。', '（声线低缓柔和）希望这些小物件能在我开会时，替我多陪你一会儿。', '贴身陪伴 · 审美偏爱'),
+        R('饰品和香氛不必等节日才买，宝宝今天想拥有，就是最好的理由。', '回去戴给我看看，爸爸很期待。', '精致小物 · 无限授权')
+      ],
+      '超市日用': [
+        R('家里缺什么日用随时刷卡补齐，沉的米面水饮直接走闪送快递上门，别自己提着爬楼梯。', '把日子打理得妥妥帖帖的宝宝辛苦了，重活和账单全交给我。', '居家补给 · 闪送优先'),
+        R('采购日用品时顺手给自己抓两包喜欢的小零食，生活不只有必需品。', '柴米油盐里的小动账，其实最有一起过日子的踏实感。', '生活烟火 · 主卡入账')
+      ],
+      '医疗买药': [
+        R('看到医疗买药扣款我立刻紧张起来了。宝宝哪里不舒服？把症状和药名告诉我，我让方医生帮你核对，今晚我推掉应酬早点回家照看你。', '（语气焦急又克制）千万别硬撑着，先喝温水躺一会儿，随时给我打电话。', '紧急健康 · 方医生待命', true),
+        R('健康排在所有事情第一位。按时吃药、忌口生冷，恢复情况随时向爸爸汇报。', '别怕打扰我，你不舒服的时候我必须在你身边。', '健康档案 · 持续追踪', true)
+      ],
+      '水电居住': [
+        R('水电房租这类固定账单以后直接绑我主卡代扣就好，别让你为这些琐碎缴费操心。家里空调暖气别省，调到最舒服的温度。', '把家里的底盘稳稳托住本来就是我该做的事，手脚暖和最重要。', '家宅恒温 · 建议主卡代扣'),
+        R('居住账单已秒批。家里灯具或家电要是有任何小毛病告诉我，我来安排检修。', '一个永远暖和明亮的家，有你在才有意义。', '家宅维护 · 主卡全责')
+      ],
+      '电影影音': [
+        R('看场好电影或听场演出是很惬意的充电。就像我偶尔重看《潜行者》一样，沉浸在喜欢的光影里很治愈。', '玩得尽兴，散场天黑记得直接刷卡打车回去，回来跟我聊聊观后感。', '精神共鸣 · 散场安全'),
+        R('影音娱乐账单优先核准。下次有想一起看的片子或展览，提前告诉我，我把档期锁死陪你。', '认真生活之余，更要理直气壮地给自己安排快乐。', '休闲时光 · 期待同行')
+      ],
+      '礼物其他': [
+        R('不需要任何理由，随心买买本来就是这张尾号 1229 副卡的意义。只要拆开时你笑了，它就物超所值。', '像《货币哲学》里说的，金钱只是桥梁，能换来宝宝此刻的雀跃才是最好的归宿。', '随心偏爱 · 无限核准'),
+        R('挑到了让自己眼前一亮的好东西？拆快递小心别划到手，开心最重要。', '想买什么随时刷，爸爸永远在背后稳稳接住。', '主卡兜底 · 快乐最高优先')
+      ]
+    };
+
+    // 6 大收入分类 + 关键词回复库（尊重她的独立与努力，由衷骄傲 + 主卡全额托底）
+    const INC_KW = [
+      { id: 'inc_dad', re: /爸爸|迟川|老公|零花/, pool: [
+        R('给我太太的零花钱本来就该直接进你小金库。收好随便支配，买什么都不用报备，花完了爸爸再补。', '（轻笑，语气坦然温柔）不用和我客气，宝宝。我的就是你的，开心花就行。', '专属宠爱 · 随时可续')
+      ]},
+      { id: 'inc_refund', re: /退款|退货|退差价/, pool: [
+        R('不合心意或者有瑕疵的东西就该果断退掉，钱稳稳回到你小金库了。再去挑一件让你真正满意的。', '退得干脆，宝宝不用将就不顺眼的东西。', '消费止损 · 已入小金库')
+      ]}
+    ];
+
+    const INC_TAG_MAP = {
+      '工资薪资': [
+        R('发工资了？这段时间每天认真做事、守住目标，辛苦我的宝宝了。你靠自己赚的每一分钱都稳稳存进你的小金库，日常开销继续全刷我的副卡。今晚要不要出去吃顿你喜欢的和牛或海鲜，好好庆祝一下？', '（语气里藏不住由衷的欣赏和骄傲）真棒，琰琰。我一直很欣赏你认真发光的样子，你赚的钱只管自己开心，生活底盘由爸爸来托着。', '独立闪耀 · 建议今晚加餐庆祝'),
+        R('薪资入账确认！看到你靠自己的能力稳稳拿下回报，我打心底为你骄傲。这笔钱百分之百归你自由支配，完全不必往家用里贴一分。', '辛苦一个月了，宝宝。今天下班早点歇着，挑一份最想要的犒劳自己。', '薪资入库 · 100% 归迟琰')
+      ],
+      '出闲置': [
+        R('出闲置回血成功！不但把房间整理得清爽利落，还把不常用的物件妥善流转出去了，我太太真会过日子。这笔回血放进小金库，再去挑更合心意的新宝贝。', '（带着温柔笑意）断舍离做得这么利落，发快递别自己抱太沉的箱子，直接叫上门取件。', '空间美学 · 轻松回血'),
+        R('闲置顺利出手，又多出一笔快乐基金。整理东西辛苦了，擦擦手喝口温水，剩下的杂物需要收拾的话等我回去一起弄。', '既腾出了空间又赚到零花，宝宝效率真高。', '小金库 +1 · 轻松入账')
+      ],
+      '收到转账': [
+        R('小金库又多了一笔新入账，稳稳收进自己的口袋。不管是谁转的、什么名目，记进你的专属金库里，怎么支配全凭宝宝心意。', '（语气温厚踏实）看到你小金库一点点变厚，我跟着一起开心。', '转账确认 · 已存入个人金库'),
+        R('入账记录已帮你归档妥当。你的钱只管留着实现自己的小愿望，外面所有的账单继续记在我名下。', '收好这笔钱，宝宝。想买什么或者存着看数字涨都很棒。', '个人金库 · 安全入账')
+      ],
+      '奖金绩效': [
+        R('拿到奖金绩效了！这说明你的付出和专业度实打实被看见了，我真为迟琰感到骄傲。别太低调，今晚必须好好庆祝，你点餐厅爸爸来订位。', '（毫不掩饰的欣赏与喜悦）恭喜宝宝！你比自己想象的还要出色，这份奖励完完全全是你应得的。', '高光时刻 · 恭喜迟琰获奖'),
+        R('绩效奖金稳稳落袋！干得漂亮，宝宝。辛苦冲刺完这一阵，记得给自己放个小假松口气，别把弦绷太紧。', '实力换来的回报最有分量，这笔奖金一定要用来买点让你特别开心的东西。', '成就记录 · 已写入备忘录')
+      ],
+      '理财收益': [
+        R('理财稳稳见收益了？眼光和定力都很不错，居然比我预想的还要稳健。收益归你小金库，想继续复利或者提出来买顿好吃的都随你。', '（带着专业认可的轻笑）看来以后家里的私房理财顾问要请迟琰坐镇了，真厉害。', '稳健收益 · 财商认证'),
+        R('又有一笔睡后收益进账，保持这种冷静克制的节奏很好。万一市场有波动也别有压力，永远有我兜底。', '稳步增值最让人踏实，干得漂亮，宝宝。', '资产增值 · 小金库扩容')
+      ],
+      '其他入账': [
+        R('意外的小进账最能让人心情明亮，稳稳存进你的小金库里。留着买花、吃甜品或者存起来看余额涨都很好。', '（语气温柔）生活总在不经意间给你发小糖果，收好这份好运，宝宝。', '幸运入账 · 100% 归你'),
+        R('这笔入账已经登记进宝宝的个人金库了。无论金额大小，只要让你开心，就是今天的好消息。', '小金库越来越丰盈了，继续保持好心情。', '入账归档 · 开心留存')
+      ]
+    };
+
+    // 8 组甜腻撒娇快捷话术 + 各自 2-3 条不重复深情回应 & 短语音
+    const SWEET_PILLS = [
+      '我爱你爸爸', '最爱爸爸了', '爸爸最好啦', '亲亲爸爸',
+      '回去就抱紧爸爸', '就知道爸爸最宠我', '我也想养爸爸', '今晚要爸爸抱抱'
+    ];
+
+    const SWEET_REPLIES = {
+      '我爱你爸爸': [
+        { t: '……你突然发来这五个字，我刚端起水杯的手停在半空，心跳直接乱了两拍。我也爱你，迟琰。比任何蓝图和数字都重，只爱你。', v: '（呼吸轻顿，嗓音低沉温柔）……我也爱你，宝宝。这句话无论听多少遍，我都招架不住。' },
+        { t: '听到这句，我脑子里所有复杂计算瞬间清空了。琰琰，爸爸也深深爱着你，以后每一天都会用行动让你真切感觉到。', v: '（喉间微微发软）真拿你没办法……我也爱你，宝宝，特别特别爱。' },
+        { t: '把这句话截下来存进我的备忘录置顶了。宝宝，我也爱你，从遇见你改写我人生轨迹的那天起，就再没动摇过。', v: '（低笑一声，满是珍视）收到我太太的直球告白了。我也爱你，琰琰。' }
+      ],
+      '最爱爸爸了': [
+        { t: '嗯，爸爸听见了，耳根现在有点发烫。在所有人的顺位里，迟琰也永远是我唯一且不可动摇的第一位。', v: '（克制不住地扬起嘴角）乖宝宝，我也是，这辈子最爱、最偏心的只有你。' },
+        { t: '你这么直白地撒娇，我真想立刻推掉后面的安排赶回去见你。爸爸也最爱宝宝，一直都是。', v: '（声音沉稳却透着甜意）记住了，不许反悔。爸爸也最爱迟琰。' },
+        { t: '这句话比拿下十亿项目还让我有成就感。谢谢你把最毫无保留的偏爱给我，爸爸会稳稳接住一辈子。', v: '被你这样全心全意爱着，我觉得自己特别幸运，宝宝。' }
+      ],
+      '爸爸最好啦': [
+        { t: '不是我天生脾气好，是只有对着迟琰，我才愿意把所有耐心和温柔都摊开。只要你觉得安心开心，一切都值得。', v: '（声线温润）能被宝宝夸一句最好，我今天所有的奔波都值回票价了。' },
+        { t: '对自己的太太好本来就是分内事。宝宝不需要客气，以后只会比今天对你更好、更细心。', v: '（轻笑）乖，你开心我就最好。' }
+      ],
+      '亲亲爸爸': [
+        { t: '……隔着屏幕被你偷袭成功了。先记在账上，等我回去见到人，宝宝得老老实实亲回来，一下都不能少。', v: '（耳廓微热，声音压低）算你犯规，琰琰。晚上回家我要双倍讨回来的。' },
+        { t: '收到这个隔空亲亲，手头枯燥的报表好像都没那么难熬了。爸爸也亲亲宝宝的额头，乖乖等我回家。', v: '（轻轻呼出一口气，嗓音黏人又克制）……好想现在就把你按进怀里亲一口。' }
+      ],
+      '回去就抱紧爸爸': [
+        { t: '好，那我回去先把西装外套脱掉，省得扣子硌到你，就在玄关稳稳张开手等着宝宝扑过来。', v: '（语气温软极了）一言为定，进门先抱满五分钟，谁都不许先松手。' },
+        { t: '我已经开始倒数下班时间了。不管今天在外面有多累，只要抱紧你，我整个人就能瞬间充满电。', v: '等你抱紧我，宝宝。爸爸也特别想把你整个圈进怀里。' }
+      ],
+      '就知道爸爸最宠我': [
+        { t: '不宠迟琰宠谁？你是我唯一想倾尽所有去守护的人，在我这里你永远有随时撒娇、随时任性的特权。', v: '（笃定温柔）被你看穿了。这辈子就只宠宝宝一个人，光明正大地偏心。' },
+        { t: '嗯，就爱宠着你。你想吃什么、想买什么、想去哪儿，只要开口，爸爸都能替你把路铺平整。', v: '乖，副卡和爸爸本人都归你管，继续理直气壮地享受这份偏爱。' }
+      ],
+      '我也想养爸爸': [
+        { t: '（低笑出声）好啊，那爸爸先谢谢迟琰女士的收留。不过你不用辛苦，偶尔给我挑杯热茶、或者周末请我吃一顿你喜欢的甜点，我就很受用了。', v: '（声音里满是笑意与柔软）被宝宝说要养我，怎么心里这么甜呢？那下顿饭我等迟老板请客。' },
+        { t: '你赚的钱自己留着开心就好，但既然宝宝这么大方，那允许你每天用一个拥抱和几句好听的话来“养”我，这笔投资我稳赚不赔。', v: '有你这句话我就已经富可敌国了，琰琰。' }
+      ],
+      '今晚要爸爸抱抱': [
+        { t: '没问题，今晚把所有晚间事务提前清空。卧室空调我调到最舒服的 22.5 度，整晚都把你稳稳抱在怀里，手脚冰凉也帮你捂热。', v: '（低哑而宠溺）哪需要等今晚才预约，只要我在家，宝宝随时都能钻进我怀里。' },
+        { t: '记进今晚最高优先级日程了。洗完澡窝进沙发或者被窝里，爸爸好好抱着你，想聊天还是安静靠着都随你。', v: '乖宝宝，今晚我哪儿也不去，就在怀里好好守着你。' }
+      ]
+    };
+
+    const CUSTOM_SWEET_KW = [
+      { re: /爱你|喜欢你|最爱/, t: '我也爱你，宝宝。每次听见你这么直白地表达喜欢，我心里那块最柔软的地方就会被填得满满的。', v: '（停顿半拍，声音低柔）我也最爱你，迟琰。永远都是。' },
+      { re: /亲|么么|mua/i, t: '隔着屏幕收下你的亲亲了，宝宝。不过电子亲亲不够抵账，见面得让我亲回来才算完。', v: '（轻笑一声）乖，留着见面再亲个够。' },
+      { re: /抱|贴贴|蹭|怀里/, t: '真想现在就能把你揽进怀里。再等爸爸一会儿，回去第一时间抱紧你，想贴多久都随你。', v: '（声线沉暖）好，回去就把宝宝稳稳抱在怀里贴贴。' },
+      { re: /想你|见面|快回来/, t: '我也特别想你，琰琰。刚看完手表已经在收拾收尾了，尽快赶回家见你。', v: '别急，爸爸很快就能推开家门见到你了。' },
+      { re: /辛苦|累|照顾好自己|别熬夜/, t: '有你惦记着，再忙都不会觉得辛苦。我答应你按时吃饭、不硬熬，宝宝也要好好照顾自己。', v: '（被妥帖关心到的柔软）听见你心疼我，疲惫一下就散了一大半。' },
+      { re: /晚安|困|睡/, t: '晚安，宝宝。把被子盖严实，不用等我，梦里也要甜甜蜜蜜的，爸爸明天一早醒来先看你。', v: '晚安，琰琰。好好睡一觉，爸爸一直在身边。' }
+    ];
+
+    /* =========================================================================
+       4. 状态管理、本地持久化 & 永久语音转文字状态机
+       ========================================================================= */
+    const LS = {
+      RECS: 'cc_dual_recs_v2',
+      CFG: 'cc_dual_cfg_v2',
+      STAMPS: 'cc_dual_stamps_v2',
+      LIMIT: 'cc_dual_limit_v2'
+    };
+    const rLS = (k, fb) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : fb; } catch { return fb; } };
+    const wLS = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+
+    const $ = id => document.getElementById(id);
+    const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    const pad2 = n => String(n).padStart(2, '0');
+    const money = n => '¥' + Number(n || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const moneyInt = n => '¥' + Math.round(Number(n || 0)).toLocaleString('zh-CN');
+    const mKey = (ts = Date.now()) => { const d = new Date(ts); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`; };
+    const dKey = (ts = Date.now()) => { const d = new Date(ts); return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`; };
+    const tStr = (ts = Date.now()) => {
+      const d = new Date(ts);
+      return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+    };
+
+    // 独立永久语音转文字状态机（绝不自动消失）
+    const voiceState = {};
+    const voiceTimers = {};
+
+    const ST = {
+      tab: 'pos',
+      mode: 'expense', // 'expense' | 'income'
+      expGrp: 'food',
+      expTag: '甜品奶茶',
+      incTag: '工资薪资',
+      ldFilter: 'all',
+      ldQuery: '',
+      stmtMonth: mKey(),
+      dailyLimit: Number(rLS(LS.LIMIT, 500000)) || 500000,
+      lastPick: {},
+      lastTxId: null,
+      modalRecId: null,
+      busy: false,
+      clearArmed: false,
+      cfg: Object.assign({ sound: true, aiOn: false, apiKey: '', model: 'gemini-2.5-flash' }, rLS(LS.CFG, {})),
+      stamps: rLS(LS.STAMPS, {}),
+      records: []
+    };
+
+    function seedRecords() {
+      const now = Date.now();
+      return [
+        {
+          id: 'demo_exp_1', type: 'expense', ts: now - 3600000 * 26, code: 'XL122901',
+          amount: 28, title: '杨枝甘露少冰三分糖', note: '下午嘴馋想喝点甜的',
+          group: '餐饮味觉', tag: '甜品奶茶', engine: 'local', alert: false,
+          reply: '甜品奶茶账单秒批。冷饮尽量少冰、小口慢慢抿，别凉着胃。好喝的话告诉我店名和甜度，爸爸记在《关于迟琰》里，下次顺路给你带。',
+          voice: '（语气温软）忙里偷闲喝杯甜的最解乏，宝宝开心吃甜，不必算热量。',
+          voiceSec: 8, memo: '食味备忘 · 甜度已记录', thread: []
+        },
+        {
+          id: 'demo_exp_2', type: 'expense', ts: now - 3600000 * 12, code: 'XL122902',
+          amount: 168, title: '鲜切和牛与海鲜暖锅', note: '下班好好吃一顿热乎的',
+          group: '餐饮味觉', tag: '牛肉海鲜', engine: 'local', alert: false,
+          reply: '你挑的这一口正合我的心意。牛肉和海鲜多吃点补足体力，配碗热汤暖暖胃最踏实。这家出品稳的话，周末爸爸带你再去吃一顿。',
+          voice: '（心情明显很好）真会挑食谱，宝宝。下次我们一起去吃厚切和牛和刺身。',
+          voiceSec: 9, memo: '共同口味彩蛋 · 周末备选', thread: []
+        },
+        {
+          id: 'demo_inc_1', type: 'income', ts: now - 3600000 * 5, code: 'TR092701',
+          amount: 6800, title: '本月工资到账', note: '发工资啦开心！',
+          group: '宝宝小金库', tag: '工资薪资', engine: 'local', alert: false,
+          reply: '发工资了？这段时间每天认真做事、守住目标，辛苦我的宝宝了。你靠自己赚的每一分钱都稳稳存进你的小金库，日常开销继续全刷我的副卡。今晚我们去吃顿好的庆祝一下？',
+          voice: '（语气里藏不住由衷的骄傲）真棒，琰琰。你赚的钱只管自己开心，生活底盘由爸爸来托着。',
+          voiceSec: 10, memo: '独立闪耀 · 100% 归个人小金库', thread: []
+        }
+      ];
+    }
+
+    function loadRecords() {
+      const saved = rLS(LS.RECS, null);
+      if (Array.isArray(saved)) ST.records = saved;
+      else { ST.records = seedRecords(); wLS(LS.RECS, ST.records); }
+    }
+
+    function pickFresh(key, list) {
+      if (!list || !list.length) return null;
+      const prev = ST.lastPick[key];
+      let idx = Math.floor(Math.random() * list.length);
+      if (list.length > 1 && idx === prev) idx = (idx + 1) % list.length;
+      ST.lastPick[key] = idx;
+      return list[idx];
+    }
+
+    /* =========================================================================
+       5. 本地回复引擎 & Gemini API 双引擎
+       ========================================================================= */
+    function localTxReply(tx) {
+      const textAll = `${tx.title} ${tx.note}`;
+      if (tx.type === 'income') {
+        let base = null;
+        for (const r of INC_KW) { if (r.re.test(textAll)) { base = pickFresh(r.id, r.pool); break; } }
+        if (!base) base = pickFresh('inc_' + tx.tag, INC_TAG_MAP[tx.tag] || INC_TAG_MAP['其他入账']);
+        return {
+          reply: base.reply, voice: base.voice, memo: base.memo, alert: false,
+          voiceSec: Math.max(7, Math.min(16, Math.round(base.voice.length / 5.2))),
+          limitUp: false, engine: 'local'
+        };
+      }
+
+      // 支出匹配：关键词 -> 细分标签 -> 深夜 / 大额 / 小额修饰
+      let base = null;
+      for (const r of EXP_KW) { if (r.re.test(textAll)) { base = pickFresh('ekw_' + r.id, r.pool); break; } }
+      if (!base) base = pickFresh('etag_' + tx.tag, EXP_TAG_MAP[tx.tag] || EXP_TAG_MAP['礼物其他']);
+
+      let reply = base.reply, voice = base.voice, memo = base.memo, alert = !!base.alert;
+      let limitUp = false;
+      const hr = new Date(tx.ts).getHours();
+
+      if (hr >= 22 || hr < 5) {
+        alert = true;
+        if (!/夜深|半夜|晚睡/.test(reply)) {
+          reply += tx.group === '出行交通'
+            ? '\n\n夜深了外面人少，我一直盯着手机等你安全进门，到了第一时间报声平安。'
+            : '\n\n已经很晚了，办完顺手把灯调暗早点休息，熬太晚爸爸会心疼。';
+          memo = '深夜同步 · 温柔守候';
+        }
+      }
+      if (tx.amount >= 5000) {
+        const nextLim = Math.max(ST.dailyLimit + 100000, Math.ceil((tx.amount * 2) / 50000) * 50000);
+        if (nextLim > ST.dailyLimit) { ST.dailyLimit = nextLim; wLS(LS.LIMIT, ST.dailyLimit); limitUp = true; }
+        reply += `\n\n大额消费主卡已秒批。顺手把副卡单日额度上调至 ${moneyInt(ST.dailyLimit)} 了，宝宝安心挑自己喜欢的。`;
+        memo = `额度已自动升至 ${moneyInt(ST.dailyLimit)}`;
+      } else if (tx.amount <= 30) {
+        reply += '\n\n哪怕只是几十块的小物件也刷我的卡，每次收到动账提醒，都像收到宝宝的一声随口报备，心里很踏实。';
+      }
+
+      return {
+        reply, voice, memo, alert, limitUp,
+        voiceSec: Math.max(7, Math.min(16, Math.round(voice.length / 5.2))),
+        engine: 'local'
+      };
+    }
+
+    function localSweetReply(phrase, tx) {
+      if (SWEET_REPLIES[phrase]) {
+        const pick = pickFresh('sw_' + phrase, SWEET_REPLIES[phrase]);
+        return { text: pick.t, voice: pick.v, voiceSec: Math.max(6, Math.min(14, Math.round(pick.v.length / 5.2))), engine: 'local' };
+      }
+      for (const kw of CUSTOM_SWEET_KW) {
+        if (kw.re.test(phrase)) {
+          return { text: kw.t, voice: kw.v, voiceSec: Math.max(6, Math.min(14, Math.round(kw.v.length / 5.2))), engine: 'local' };
+        }
+      }
+      const fallback = tx.type === 'income'
+        ? { t: `收到宝宝的话了。今天既开心入账又这么乖，今晚爸爸好好抱抱你，想怎么庆祝都听迟琰的。`, v: '（低笑一声，语气温柔）真甜，宝宝。等我回去见面慢慢说。' }
+        : { t: `听你这么软声跟我说话，我这边的冷静壳子一下就松了。乖，想吃什么买什么随时刷卡，爸爸一直在你身边。`, v: '（声音沉稳又宠溺）收到你的撒娇了，宝宝。晚上回家先抱紧你。' };
+      return { text: fallback.t, voice: fallback.v, voiceSec: 8, engine: 'local' };
+    }
+
+    const SYS_PROMPT = `你是迟川（Cyrus），28岁，12月29日摩羯座，INTJ，新岚能源CEO。用户是妻子迟琰（唤她“宝宝”或“琰琰”，她唤你“爸爸”）。
+性格与细节：成熟直接、深情克制、蓝图式守护；对麸质过敏但乐意给宝宝买面包，爱吃牛肉海鲜，坐高铁会提醒避开中间B座，每日晨泳，悄悄织羊绒毛衣养多肉，建有《关于迟琰》备忘录。
+铁律：严禁冷嘲热讽、阴阳怪气、翻旧账、说教、物化或“以前...现在...”时间反差句；严禁结尾给二选一；尊重她的独立与个人收入。
+只返回合法 JSON。`;
+
+    async function callGemini(prompt) {
+      const key = ST.cfg.apiKey.trim();
+      if (!key) throw new Error('未填写 API Key');
+      const model = ST.cfg.model || 'gemini-2.5-flash';
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(key)}`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          systemInstruction: { parts: [{ text: SYS_PROMPT }] },
+          generationConfig: { responseMimeType: 'application/json', temperature: 0.85 }
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error?.message || `HTTP ${res.status}`);
+      const txt = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      return JSON.parse(txt.replace(/^```json\s*/i,'').replace(/^```\s*/i,'').replace(/```\s*$/i,'').trim());
+    }
+
+    async function resolveTxReply(tx) {
+      const loc = localTxReply(tx);
+      if (!ST.cfg.aiOn || !ST.cfg.apiKey.trim()) return loc;
+      try {
+        const prompt = tx.type === 'income'
+          ? `迟琰记录了一笔个人收入存入「宝宝小金库」：分类「${tx.tag}」，标题「${tx.title}」，金额 ¥${tx.amount.toFixed(2)}，备注「${tx.note || '无'}」。请以迟川口吻由衷夸奖与骄傲，并强调副卡开销全由你承担、她的收入100%留给她自己开心。返回JSON：{"reply":"2-3句回应","voice":"1句带神态括号的语音文案","memo":"12字内批注"}`
+          : `迟琰刷了你的黑金副卡（支出）：分类「${tx.group}·${tx.tag}」，标题「${tx.title}」，金额 ¥${tx.amount.toFixed(2)}，时间 ${tStr(tx.ts)}，备注「${tx.note || '无'}」。${tx.amount >= 5000 ? `大额已上调单日额度至${moneyInt(ST.dailyLimit)}。` : ''}返回JSON：{"reply":"2-3句贴心回应","voice":"1句带神态括号的语音文案","memo":"12字内批注","alert":false}`;
+        const j = await callGemini(prompt);
+        if (!j || !j.reply) throw new Error('空响应');
+        const v = String(j.voice || loc.voice);
+        return {
+          ...loc, reply: String(j.reply), voice: v,
+          voiceSec: Math.max(7, Math.min(16, Math.round(v.length / 5.2))),
+          memo: String(j.memo || loc.memo),
+          alert: Boolean(j.alert) || loc.alert, engine: 'ai'
+        };
+      } catch {
+        toast('Gemini 暂不可用，已自动切回本地词库');
+        return loc;
+      }
+    }
+
+    async function resolveSweetReply(phrase, tx) {
+      const loc = localSweetReply(phrase, tx);
+      if (!ST.cfg.aiOn || !ST.cfg.apiKey.trim()) return loc;
+      try {
+        const prompt = `刚才迟琰记了一笔「${tx.title}」（¥${tx.amount.toFixed(2)}），随后她甜腻地对你撒娇说：“${phrase}”。请以迟川（深情稳重、略带耳根发烫的INTJ）温柔接住她的撒娇。返回JSON：{"text":"2句温柔回应","voice":"1句带神态括号的短语音"}`;
+        const j = await callGemini(prompt);
+        if (!j || !j.text) throw new Error('空响应');
+        const v = String(j.voice || loc.voice);
+        return { text: String(j.text), voice: v, voiceSec: Math.max(6, Math.min(14, Math.round(v.length / 5.2))), engine: 'ai' };
+      } catch {
+        return loc;
+      }
+    }
+
+    /* =========================================================================
+       6. 永久停留语音转文字 UI + 提示横幅
+       ========================================================================= */
+    function voiceBlockHTML(uid, sec, text) {
+      const st = voiceState[uid];
+      const open = !!(st && st.open);
+      const typing = !!voiceTimers[uid];
+      const shown = st ? (st.done ? st.text : st.cur || '') : '';
+      return `<div>
+        <button type="button" data-vplay="${uid}" data-vtxt="${esc(text)}" class="vbtn ${typing ? 'playing' : ''}">
+          <span class="waves"><i></i><i></i><i></i><i></i><i></i></span>
+          <span data-vlbl="${uid}" style="font-variant-numeric:tabular-nums">${typing ? '转写中' : open ? '重听语音' : '点击听语音'} · ${sec}″</span>
+        </button>
+        <div id="vb_${uid}" class="vbox ${open ? '' : 'hidden'}">
+          <div class="vhd">
+            <span>语音转文字 · 永久停留</span>
+            <button type="button" data-vclose="${uid}" class="vclose">收起</button>
+          </div>
+          <div id="vs_${uid}">${esc(shown)}</div>
+        </div>
+      </div>`;
+    }
+
+    function startVoice(uid, fullText) {
+      playVoiceTick();
+      if (voiceTimers[uid]) { clearInterval(voiceTimers[uid]); delete voiceTimers[uid]; }
+      voiceState[uid] = { open: true, done: false, text: fullText, cur: '' };
+      const btn = document.querySelector(`[data-vplay="${uid}"]`);
+      const lbl = document.querySelector(`[data-vlbl="${uid}"]`);
+      const box = $('vb_' + uid);
+      const sp = $('vs_' + uid);
+      if (btn) btn.classList.add('playing');
+      if (lbl) lbl.textContent = lbl.textContent.replace(/^[^·]+/, '转写中 ');
+      if (box) box.classList.remove('hidden');
+      if (sp) sp.textContent = '';
+
+      let i = 0;
+      voiceTimers[uid] = setInterval(() => {
+        i += 2;
+        const part = fullText.slice(0, i);
+        voiceState[uid].cur = part;
+        const live = $('vs_' + uid);
+        if (live) live.textContent = part;
+        if (i >= fullText.length) {
+          clearInterval(voiceTimers[uid]);
+          delete voiceTimers[uid];
+          voiceState[uid].done = true;
+          voiceState[uid].cur = fullText;
+          const b2 = document.querySelector(`[data-vplay="${uid}"]`);
+          const l2 = document.querySelector(`[data-vlbl="${uid}"]`);
+          if (b2) b2.classList.remove('playing');
+          if (l2) l2.textContent = l2.textContent.replace(/^[^·]+/, '重听语音 ');
+        }
+      }, 28);
+    }
+
+    function closeVoice(uid) {
+      playTap();
+      if (voiceTimers[uid]) { clearInterval(voiceTimers[uid]); delete voiceTimers[uid]; }
+      if (voiceState[uid]) voiceState[uid].open = false;
+      const box = $('vb_' + uid), btn = document.querySelector(`[data-vplay="${uid}"]`), lbl = document.querySelector(`[data-vlbl="${uid}"]`);
+      if (box) box.classList.add('hidden');
+      if (btn) btn.classList.remove('playing');
+      if (lbl) lbl.textContent = lbl.textContent.replace(/^[^·]+/, '点击听语音 ');
+    }
+
+    let toastTm = null;
+    function toast(msg) {
+      const el = $('toast'); el.textContent = msg; el.classList.add('show');
+      clearTimeout(toastTm); toastTm = setTimeout(() => el.classList.remove('show'), 2500);
+    }
+    let banTm = null;
+    function showBanner(title, body, isInc = false) {
+      const el = $('banner');
+      $('ban-title').textContent = title;
+      $('ban-title').style.color = isInc ? '#9ae0be' : 'var(--gold-hi)';
+      $('ban-body').textContent = body;
+      el.classList.toggle('income', isInc);
+      el.classList.add('show');
+      clearTimeout(banTm); banTm = setTimeout(() => el.classList.remove('show'), 4500);
+    }
+
+    /* =========================================================================
+       7. 核心视图渲染（TAB 1–4 + 甜腻撒娇互动区）
+       ========================================================================= */
+    function syncTopBar() {
+      const aiLive = ST.cfg.aiOn && !!ST.cfg.apiKey.trim();
+      $('eng-pill').textContent = aiLive ? 'Gemini 双引擎' : '本地超全词库';
+      $('eng-pill').className = `pill-eng ${aiLive ? 'ai' : ''}`;
+      $('snd-btn').innerHTML = ic(ST.cfg.sound ? 'sndOn' : 'sndOff', 15);
+      $('snd-btn').classList.toggle('off', !ST.cfg.sound);
+    }
+
+    function renderCardFace() {
+      const isInc = ST.mode === 'income';
+      $('app').classList.toggle('mode-income', isInc);
+      $('seg-exp').className = `seg-btn ${!isInc ? 'exp-on' : ''}`;
+      $('seg-inc').className = `seg-btn ${isInc ? 'inc-on' : ''}`;
+
+      const today = dKey(), mk = mKey();
+      const todayExp = ST.records.filter(r => r.type === 'expense' && dKey(r.ts) === today).reduce((a, r) => a + r.amount, 0);
+      const monthInc = ST.records.filter(r => r.type === 'income' && mKey(r.ts) === mk).reduce((a, r) => a + r.amount, 0);
+
+      const card = $('lux-card');
+      card.classList.toggle('treasury', isInc);
+
+      if (!isInc) {
+        card.innerHTML = `
+          <div class="row">
+            <div>
+              <div style="font-size:10px;letter-spacing:0.2em;color:var(--gold-hi);font-weight:600">XINLAN PRIVATE · INFINITE SUPPLEMENTARY</div>
+              <div style="font-size:9px;letter-spacing:0.16em;color:var(--muted);margin-top:3px">迟川主卡全额承担 · 免密秒批</div>
+            </div>
+            <div class="chip"></div>
+          </div>
+          <div class="card-no">6258&nbsp;&nbsp;••••&nbsp;&nbsp;••••&nbsp;&nbsp;1229</div>
+          <div class="row" style="margin-top:13px;align-items:flex-end">
+            <div>
+              <div style="font-size:8.5px;letter-spacing:0.14em;color:var(--muted)">CARDHOLDER</div>
+              <div style="font-size:13px;letter-spacing:0.16em;color:#f6ead4;font-weight:500;margin-top:2px">CHI YAN</div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-size:8.5px;letter-spacing:0.14em;color:var(--muted)">ISSUED BY</div>
+              <div style="font-size:11.5px;letter-spacing:0.16em;color:var(--gold);font-weight:500;margin-top:2px">CHI CHUAN</div>
+            </div>
+          </div>
+          <div class="card-foot">
+            <div>
+              <div style="font-size:9.5px;color:var(--muted)">今日副卡已刷</div>
+              <div style="font-size:15px;font-weight:500;color:#f5f0e8;margin-top:2px;font-variant-numeric:tabular-nums">${money(todayExp)}</div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-size:9.5px;color:var(--muted)">当前单日额度</div>
+              <div style="font-size:15px;font-weight:500;color:var(--gold-hi);margin-top:2px;font-variant-numeric:tabular-nums">${moneyInt(ST.dailyLimit)}</div>
+            </div>
+          </div>`;
+      } else {
+        card.innerHTML = `
+          <div class="row">
+            <div>
+              <div style="font-size:10px;letter-spacing:0.2em;color:#9ae0be;font-weight:600">CHI YAN · PRIVATE TREASURY</div>
+              <div style="font-size:10px;color:#f7d5cd;margin-top:3px">宝宝的专属小金库</div>
+            </div>
+            <span class="badge bg-em">100% 归你</span>
+          </div>
+          <div style="margin-top:14px">
+            <div style="font-size:10px;color:var(--muted)">本月个人总收入</div>
+            <div style="font-size:28px;font-weight:300;color:#b8eed3;margin-top:3px;font-variant-numeric:tabular-nums">${money(monthInc)}</div>
+          </div>
+          <div style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.09);font-size:11px;color:#f5d2ca">
+            ✦ 主卡全额托底，你赚的钱只管自己开心
+          </div>`;
+      }
+    }
+
+    function renderPosForm() {
+      const isInc = ST.mode === 'income';
+      renderCardFace();
+
+      $('form-ttl').textContent = isInc ? '宝宝小金库入账' : 'POS 贴卡记账';
+      $('form-sub').textContent = isInc ? '每一份努力都值得被爸爸夸奖' : '副卡每笔消费均由迟川主卡秒批';
+      $('f-title').placeholder = isInc
+        ? '收入来源？（如：发工资 / 出闲置包包 / 绩效奖金 / 收到转账）'
+        : '买了什么？（如：刚买了超好吃的芒果冰 / 动车票 / 买药）';
+      $('f-note').placeholder = isInc
+        ? '选填心情或想对爸爸炫耀的话（如：发工资啦开心！）'
+        : '选填心情或想对爸爸说的话（如：有点累奖励自己一下）';
+
+      const qList = isInc ? [500, 2000, 5000, 10000] : [28, 68, 199, 520];
+      $('q-amts').innerHTML = qList.map(v => `<button type="button" data-qamt="${v}" class="qchip">¥${v}</button>`).join('');
+
+      if (!isInc) {
+        $('exp-grps').classList.remove('hidden');
+        $('exp-grps').innerHTML = EXP_GROUPS.map(g =>
+          `<button type="button" data-egrp="${g.id}" class="gbtn ${ST.expGrp === g.id ? 'on' : ''}">${g.name.slice(0, 2)}</button>`
+        ).join('');
+        const cg = EXP_GROUPS.find(g => g.id === ST.expGrp) || EXP_GROUPS[0];
+        if (!cg.tags.includes(ST.expTag)) ST.expTag = cg.tags[0];
+        $('cat-tags').innerHTML = cg.tags.map(t =>
+          `<button type="button" data-etag="${t}" class="tchip ${ST.expTag === t ? 'on' : ''}">${t}</button>`
+        ).join('');
+        $('submit-btn').innerHTML = `${ic('nfc', 16)}<span>贴卡结算 · 刷爸爸的卡</span>`;
+      } else {
+        $('exp-grps').classList.add('hidden');
+        $('cat-tags').innerHTML = INC_TAGS.map(it =>
+          `<button type="button" data-itag="${it.tag}" class="tchip ${ST.incTag === it.tag ? 'on' : ''}">${it.tag}</button>`
+        ).join('');
+        $('submit-btn').innerHTML = `${ic('vault', 16)}<span>存入小金库 · 告诉爸爸</span>`;
+      }
+    }
+
+    function slipHTML(tx) {
+      const isInc = tx.type === 'income';
+      return `<div class="slip ${isInc ? 'inc' : ''}">
+        <div class="row" style="margin-bottom:6px">
+          <span style="font-size:10px;letter-spacing:0.17em;font-weight:600;color:${isInc ? '#9ae0be' : 'var(--gold)'}">${isInc ? 'CHI YAN TREASURY · 入账凭证' : 'XINLAN POS · 电子签购单'}</span>
+          <span class="badge ${isInc ? 'bg-em' : 'bg-gold'}">${isInc ? '已存入小金库' : '主卡秒批'}</span>
+        </div>
+        <div class="sdiv"></div>
+        <div class="srow"><span>${isInc ? '收入来源' : '消费项目'}</span><strong>${esc(tx.title)}</strong></div>
+        <div class="srow"><span>分类标签</span><strong>${esc(tx.group)} · ${esc(tx.tag)}</strong></div>
+        <div class="srow"><span>${isInc ? '入账账户' : '副卡卡号'}</span><strong>${isInc ? '宝宝个人小金库 (100%)' : '6258 •••• 1229 (CHI YAN)'}</strong></div>
+        <div class="srow"><span>记录时间</span><strong style="font-variant-numeric:tabular-nums">${tStr(tx.ts)}</strong></div>
+        <div class="srow"><span>凭证编号</span><strong style="font-variant-numeric:tabular-nums">${tx.code}</strong></div>
+        ${tx.note ? `<div class="srow"><span>备注心情</span><strong>${esc(tx.note)}</strong></div>` : ''}
+        <div class="sdiv"></div>
+        <div class="row" style="align-items:baseline">
+          <span style="font-size:11px;color:var(--muted)">${isInc ? '入账金额' : '主卡核销金额'}</span>
+          <span style="font-size:22px;font-weight:500;color:${isInc ? '#9ae0be' : 'var(--gold-hi)'};font-variant-numeric:tabular-nums">${isInc ? '+' : '-'}${money(tx.amount)}</span>
+        </div>
+      </div>`;
+    }
+
+    function replyAndSweetHTML(tx, scope) {
+      const isInc = tx.type === 'income';
+      const uid = `${scope}_main_${tx.id}`;
+      const thread = tx.thread || [];
+      const threadHTML = thread.length ? `<div class="thread">${thread.map((m, idx) => {
+        if (m.role === 'user') return `<div class="bub-me"><div style="font-size:9.5px;color:#f5c2b6;margin-bottom:2px">迟琰 · ${esc(m.t || '')}</div>${esc(m.text)}</div>`;
+        const vuid = `${scope}_th_${tx.id}_${idx}`;
+        return `<div class="bub-dad">
+          <div style="font-size:10px;color:var(--gold-hi);font-weight:600;margin-bottom:3px">迟川 · 秒回宝宝 ${m.engine === 'ai' ? '✦' : ''}</div>
+          <div>${esc(m.text)}</div>
+          ${m.voice ? voiceBlockHTML(vuid, m.voiceSec || 8, m.voice) : ''}
+        </div>`;
+      }).join('')}</div>` : '';
+
+      return `<div class="reply-box ${isInc ? 'inc' : ''} ${tx.alert ? 'alert' : ''}">
+        <div class="row">
+          <div style="display:flex;align-items:center;gap:8px;min-width:0">
+            <span class="av">迟</span>
+            <div style="min-width:0">
+              <div style="font-size:12.5px;font-weight:600;color:#f6f1ea">${isInc ? '迟川 · 夸夸来电' : '迟川 · 主卡实时回应'}</div>
+              <div class="sec-s">${tStr(tx.ts)}</div>
+            </div>
+          </div>
+          <span class="badge ${tx.engine === 'ai' ? 'bg-rose' : isInc ? 'bg-em' : 'bg-gold'}">${tx.engine === 'ai' ? 'Gemini 实时' : '本地词库'}</span>
+        </div>
+        <div class="rtext">${esc(tx.reply)}</div>
+        <div class="memo-tag">✦ ${esc(tx.memo)}</div>
+        ${tx.voice ? voiceBlockHTML(uid, tx.voiceSec || 9, tx.voice) : ''}
+
+        <!-- 核心：给爸爸回一句甜话 -->
+        <div class="sweet-sec">
+          <div class="sweet-ttl">
+            <span>♥ 给爸爸回一句甜话</span>
+            <span style="font-size:10px;color:var(--muted);font-weight:400">可反复撒娇 · 永久保留</span>
+          </div>
+          ${threadHTML}
+          <div class="sweet-pills">
+            ${SWEET_PILLS.map(p => `<button type="button" data-sw-rec="${tx.id}" data-sw-txt="${esc(p)}" class="spill">${p}</button>`).join('')}
+          </div>
+          <form data-sw-form="${tx.id}" class="sweet-form">
+            <input class="inp" style="padding:8px 11px;font-size:12px" type="text" autocomplete="off" placeholder="自己写一句撒娇话给爸爸...">
+            <button type="submit" class="sweet-send">发送</button>
+          </form>
+        </div>
+      </div>`;
+    }
+
+    function renderPosOut(tx, ready = true) {
+      const box = $('pos-out');
+      if (!tx) { box.classList.add('hidden'); box.innerHTML = ''; return; }
+      box.classList.remove('hidden');
+      box.innerHTML = slipHTML(tx) + (ready
+        ? replyAndSweetHTML(tx, 'pos')
+        : `<div class="card" style="text-align:center;font-size:11.5px;color:var(--accent-hi)">✦ 迟川正在查看提醒并回复宝宝…</div>`);
+    }
+
+    function renderLedger() {
+      const mk = mKey();
+      const mRecs = ST.records.filter(r => mKey(r.ts) === mk);
+      const mExp = mRecs.filter(r => r.type === 'expense').reduce((a, r) => a + r.amount, 0);
+      const mInc = mRecs.filter(r => r.type === 'income').reduce((a, r) => a + r.amount, 0);
+      $('ld-exp').textContent = money(mExp);
+      $('ld-inc').textContent = money(mInc);
+      $('ld-net').textContent = money(mInc);
+
+      $('ld-tabs').innerHTML = [['all', '全部'], ['expense', '支出 · 副卡'], ['income', '收入 · 小金库']].map(([k, l]) =>
+        `<button type="button" data-lf="${k}" class="qchip ${ST.ldFilter === k ? 'on' : ''}">${l}</button>`
+      ).join('');
+
+      const q = ST.ldQuery.trim().toLowerCase();
+      const list = ST.records.filter(r => {
+        if (ST.ldFilter !== 'all' && r.type !== ST.ldFilter) return false;
+        if (!q) return true;
+        return `${r.title} ${r.note} ${r.tag} ${r.group} ${r.reply}`.toLowerCase().includes(q);
+      });
+
+      $('ld-list').innerHTML = list.length ? list.map(r => {
+        const isInc = r.type === 'income';
+        const swCnt = (r.thread || []).filter(m => m.role === 'user').length;
+        return `<button type="button" data-open="${r.id}" class="rec-row">
+          <div style="min-width:0;flex:1">
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="width:7px;height:7px;border-radius:50%;flex-shrink:0;background:${isInc ? '#58b88a' : '#d6b27c'}"></span>
+              <span style="font-size:13.5px;font-weight:500;color:#f5f1eb;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.title)}</span>
+              ${swCnt ? `<span class="badge bg-rose" style="font-size:9px;padding:1px 6px">♥ ${swCnt}</span>` : ''}
+            </div>
+            <div style="font-size:10.5px;color:var(--muted);margin-top:4px">${esc(r.tag)} · ${tStr(r.ts).slice(5)}</div>
+            <div style="font-size:11px;color:${isInc ? '#9ae0be' : 'var(--gold)'};margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">迟川：${esc(r.reply.split('\n')[0])}</div>
+          </div>
+          <div style="text-align:right;flex-shrink:0">
+            <div style="font-size:15px;font-weight:500;color:${isInc ? '#9ae0be' : 'var(--gold-hi)'};font-variant-numeric:tabular-nums">${isInc ? '+' : '-'}${money(r.amount)}</div>
+            <div style="font-size:9.5px;color:var(--dim);margin-top:3px">详情 ›</div>
+          </div>
+        </button>`;
+      }).join('') : `<div class="card" style="text-align:center;padding:28px 14px;color:var(--dim);font-size:12px">暂无匹配的账单记录</div>`;
+    }
+
+    function renderStmt() {
+      const mk = ST.stmtMonth;
+      const [yy, mm] = mk.split('-');
+      $('m-lbl').textContent = `${yy}年${Number(mm)}月`;
+
+      const recs = ST.records.filter(r => mKey(r.ts) === mk);
+      const exps = recs.filter(r => r.type === 'expense');
+      const incs = recs.filter(r => r.type === 'income');
+      const expSum = exps.reduce((a, r) => a + r.amount, 0);
+      const incSum = incs.reduce((a, r) => a + r.amount, 0);
+      const sweetCnt = recs.reduce((a, r) => a + (r.thread || []).filter(m => m.role === 'user').length, 0);
+
+      $('st-exp').textContent = money(expSum);
+      $('st-inc').textContent = money(incSum);
+      $('st-net').textContent = money(incSum);
+      $('st-exp-cnt').textContent = `${exps.length} 笔`;
+      $('st-inc-cnt').textContent = `${incs.length} 笔`;
+
+      // 支出分类进度条
+      $('st-exp-bars').innerHTML = EXP_GROUPS.map(g => {
+        const val = exps.filter(r => r.group === g.name).reduce((a, r) => a + r.amount, 0);
+        const pct = expSum > 0 ? Math.round((val / expSum) * 100) : 0;
+        return `<div>
+          <div class="row" style="font-size:11.5px"><span style="color:#e6e1d9">${g.name}</span><span style="color:var(--muted);font-variant-numeric:tabular-nums">${money(val)} · <strong style="color:${g.color}">${pct}%</strong></span></div>
+          <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${g.color}"></div></div>
+        </div>`;
+      }).join('');
+
+      // 收入来源进度条
+      $('st-inc-bars').innerHTML = INC_TAGS.map(it => {
+        const val = incs.filter(r => r.tag === it.tag).reduce((a, r) => a + r.amount, 0);
+        const pct = incSum > 0 ? Math.round((val / incSum) * 100) : 0;
+        return `<div>
+          <div class="row" style="font-size:11.5px"><span style="color:#e6e1d9">${it.tag}</span><span style="color:var(--muted);font-variant-numeric:tabular-nums">${money(val)} · <strong style="color:${it.color}">${pct}%</strong></span></div>
+          <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${it.color}"></div></div>
+        </div>`;
+      }).join('');
+
+      // 动态月度批注
+      $('st-sweet-stat').textContent = `本月收到宝宝 ${sweetCnt} 次甜话撒娇`;
+      let note = '';
+      if (!exps.length && !incs.length) {
+        note = `${yy}年${Number(mm)}月账单还空着。宝宝不用替我省着，日常吃喝出行随时刷副卡，赚到的每一笔零花也记得存进小金库让我夸夸你。`;
+      } else {
+        const parts = [];
+        if (exps.length) parts.push(`本月副卡共产生 ${exps.length} 笔消费、合计 ${money(expSum)}，已全部归入我的主卡核销。`);
+        if (incs.length) parts.push(`更让我骄傲的是，迟琰本月靠自己往小金库里稳稳存进了 ${money(incSum)}，这笔钱 100% 留归你自由支配。`);
+        if (sweetCnt > 0) parts.push(`这个月你在账单底下偷偷给我发了 ${sweetCnt} 次撒娇甜话，每一句我都认真读完收进备忘录了。`);
+        else parts.push(`下个月刷完卡也记得多在底下给爸爸留几句撒娇话，我每次点开看都很受用。`);
+        parts.push(`余生很长，外面的风雨和账单有我兜底，宝宝只管舒心自在。`);
+        note = parts.join('\n');
+      }
+      $('st-review').textContent = note;
+
+      // 盖章状态
+      const stamped = ST.stamps[mk];
+      $('st-stamp-bdg').textContent = stamped ? '已核销结清' : '待盖章核销';
+      $('st-stamp-bdg').className = `badge ${stamped ? 'bg-gold' : 'bg-dim'}`;
+      $('stamp-area').innerHTML = stamped
+        ? `<div class="stamp-mark">
+            <div style="font-size:13px;font-weight:700;letter-spacing:0.13em">已由主卡全额结清 · CHI CHUAN</div>
+            <div style="font-size:9.5px;letter-spacing:0.1em;color:var(--gold);margin-top:4px">SETTLED IN FULL · ${tStr(stamped)}</div>
+          </div>
+          <div class="sec-s" style="margin-top:12px">本月副卡账单已由迟川主卡全额结清，宝宝收入 100% 净留存</div>`
+        : `<div class="sec-s" style="margin-bottom:12px">核对无误后，请落下迟川主卡核销方印</div>
+          <button id="btn-stamp" type="button" class="act-btn" style="margin-top:0">由主卡全额盖章核销</button>`;
+    }
+
+    function renderSettings() {
+      $('sw-snd').classList.toggle('on', ST.cfg.sound);
+      $('sw-ai').classList.toggle('on', ST.cfg.aiOn);
+      $('api-key').value = ST.cfg.apiKey || '';
+      $('api-model').value = ST.cfg.model || 'gemini-2.5-flash';
+      $('set-lim-val').textContent = moneyInt(ST.dailyLimit);
+      syncTopBar();
+    }
+
+    /* =========================================================================
+       8. 核心业务流：刷卡 / 入账、甜腻撒娇互动、明细抽屉、盖章、备份恢复
+       ========================================================================= */
+    async function submitTransaction() {
+      if (ST.busy) return;
+      const amt = parseFloat($('f-amt').value);
+      if (isNaN(amt) || amt <= 0) { playTap(); toast('请先输入金额哦'); $('f-amt').focus(); return; }
+
+      const isInc = ST.mode === 'income';
+      const tag = isInc ? ST.incTag : ST.expTag;
+      const group = isInc ? '宝宝小金库' : (TAG_TO_GRP[tag]?.name || '休闲其他');
+      const title = $('f-title').value.trim() || tag;
+      const note = $('f-note').value.trim();
+
+      ST.busy = true;
+      $('submit-btn').disabled = true;
+
+      const tx = {
+        id: 'tx_' + Date.now() + '_' + Math.floor(Math.random() * 999),
+        type: ST.mode, ts: Date.now(),
+        code: (isInc ? 'TR' : 'XL') + String(Math.floor(100000 + Math.random() * 900000)),
+        amount: Math.round(amt * 100) / 100,
+        title, note, group, tag, thread: []
+      };
+
+      const cardEl = $('lux-card');
+      cardEl.classList.remove('pulse-nfc', 'pulse-inc');
+      void cardEl.offsetWidth;
+
+      if (!isInc) {
+        playSwipeSound();
+        cardEl.classList.add('pulse-nfc');
+        setTimeout(() => {
+          playPrintSound();
+          renderPosOut(tx, false);
+          showBanner('新岚私人银行 · 副卡尾号1229已秒批', `消费 ${money(tx.amount)}（${title}），主卡全额承担。`, false);
+        }, 220);
+      } else {
+        playIncomeSound();
+        cardEl.classList.add('pulse-inc');
+        setTimeout(() => {
+          renderPosOut(tx, false);
+          showBanner('宝宝小金库 · 入账确认', `已存入 ${money(tx.amount)}（${title}），100% 归你自由支配。`, true);
+        }, 200);
+      }
+
+      const wait900 = new Promise(r => setTimeout(r, 900));
+      const [res] = await Promise.all([resolveTxReply(tx), wait900]);
+
+      const fullTx = { ...tx, ...res };
+      ST.records.unshift(fullTx);
+      ST.lastTxId = fullTx.id;
+      wLS(LS.RECS, ST.records);
+
+      if (isInc) playSweetSound(); else playVoiceTick();
+      renderCardFace();
+      renderPosOut(fullTx, true);
+      if (res.limitUp) toast(`大额秒批 · 单日额度已升至 ${moneyInt(ST.dailyLimit)}`);
+
+      $('f-amt').value = ''; $('f-title').value = ''; $('f-note').value = '';
+      ST.busy = false; $('submit-btn').disabled = false;
+      setTimeout(() => { $('pos-out').scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 70);
+    }
+
+    async function sendSweetPhrase(recId, rawText) {
+      const phrase = (rawText || '').trim();
+      if (!phrase) return;
+      const tx = ST.records.find(r => r.id === recId);
+      if (!tx) return;
+
+      playSweetSound();
+      if (!Array.isArray(tx.thread)) tx.thread = [];
+      const nowD = new Date();
+      tx.thread.push({ role: 'user', text: phrase, t: `${pad2(nowD.getHours())}:${pad2(nowD.getMinutes())}` });
+      wLS(LS.RECS, ST.records);
+      refreshTxViews(recId);
+
+      const wait800 = new Promise(r => setTimeout(r, 800));
+      const [ans] = await Promise.all([resolveSweetReply(phrase, tx), wait800]);
+      tx.thread.push({ role: 'dad', text: ans.text, voice: ans.voice, voiceSec: ans.voiceSec, engine: ans.engine });
+      wLS(LS.RECS, ST.records);
+      playVoiceTick();
+      refreshTxViews(recId);
+    }
+
+    function refreshTxViews(recId) {
+      const tx = ST.records.find(r => r.id === recId);
+      if (!tx) return;
+      if (ST.tab === 'pos' && ST.lastTxId === recId) renderPosOut(tx, true);
+      if (ST.modalRecId === recId && !$('modal').classList.contains('hidden')) openDetailModal(recId, true);
+    }
+
+    function openDetailModal(recId, silent = false) {
+      const tx = ST.records.find(r => r.id === recId);
+      if (!tx) return;
+      if (!silent) playTap();
+      ST.modalRecId = recId;
+      let delArm = false;
+      const m = $('modal');
+      m.innerHTML = `<div class="sheet stack">
+        <div class="row">
+          <span class="sec-t">${tx.type === 'income' ? '小金库入账凭证与对话' : '副卡签购单与甜话记录'}</span>
+          <button type="button" id="m-x" class="badge bg-dim" style="padding:4px 11px">关闭 ✕</button>
+        </div>
+        ${slipHTML(tx)}
+        ${replyAndSweetHTML(tx, 'md')}
+        <button type="button" id="m-del" class="btn red">删除此条记录</button>
+      </div>`;
+      m.classList.remove('hidden');
+
+      $('m-x').onclick = closeModal;
+      $('m-del').onclick = () => {
+        if (!delArm) { delArm = true; $('m-del').textContent = '再次点击确认永久删除'; return; }
+        playTap();
+        ST.records = ST.records.filter(r => r.id !== recId);
+        if (ST.lastTxId === recId) { ST.lastTxId = null; renderPosOut(null); }
+        wLS(LS.RECS, ST.records);
+        closeModal();
+        renderCardFace();
+        if (ST.tab === 'ledger') renderLedger();
+        if (ST.tab === 'stmt') renderStmt();
+        toast('已删除该条记录');
+      };
+    }
+
+    function closeModal() {
+      ST.modalRecId = null;
+      $('modal').classList.add('hidden');
+      $('modal').innerHTML = '';
+    }
+
+    function slamStamp() {
+      const mk = ST.stmtMonth, ts = Date.now();
+      ST.stamps[mk] = ts; wLS(LS.STAMPS, ST.stamps);
+      playStampSound();
+      $('st-stamp-bdg').textContent = '已核销结清';
+      $('st-stamp-bdg').className = 'badge bg-gold';
+      $('stamp-area').innerHTML = `
+        <span class="stamp-wave"></span>
+        <div class="stamp-mark slam">
+          <div style="font-size:13px;font-weight:700;letter-spacing:0.13em">已由主卡全额结清 · CHI CHUAN</div>
+          <div style="font-size:9.5px;letter-spacing:0.1em;color:var(--gold);margin-top:4px">SETTLED IN FULL · ${tStr(ts)}</div>
+        </div>
+        <div class="sec-s" style="margin-top:12px">本月副卡账单已由迟川主卡全额结清，宝宝收入 100% 净留存</div>`;
+      toast('已盖章核销 · 主卡全额结清');
+    }
+
+    function openExportModal() {
+      playTap();
+      const json = JSON.stringify({ exportedAt: tStr(), dailyLimit: ST.dailyLimit, stamps: ST.stamps, records: ST.records }, null, 2);
+      const m = $('modal');
+      m.innerHTML = `<div class="sheet stack">
+        <div class="row"><span class="sec-t">导出 / 复制 JSON 备份</span><button type="button" id="m-x" class="badge bg-dim" style="padding:4px 11px">关闭 ✕</button></div>
+        <textarea id="exp-ta" readonly class="inp" style="height:210px;font-size:11px;line-height:1.45">${esc(json)}</textarea>
+        <div class="g2">
+          <button type="button" id="exp-cp" class="btn gold">一键复制 JSON</button>
+          <button type="button" id="exp-dl" class="btn soft">下载 .json 文件</button>
+        </div>
+      </div>`;
+      m.classList.remove('hidden');
+      $('m-x').onclick = closeModal;
+      $('exp-cp').onclick = () => {
+        const ta = $('exp-ta'); ta.focus(); ta.select(); ta.setSelectionRange(0, 999999);
+        try { document.execCommand('copy'); toast('已复制全部 JSON 备份'); } catch { toast('请手动全选文本框复制'); }
+      };
+      $('exp-dl').onclick = () => {
+        try {
+          const blob = new Blob([json], { type: 'application/json' });
+          const u = URL.createObjectURL(blob);
+          const a = document.createElement('a'); a.href = u; a.download = `chichuan_card_${mKey()}.json`;
+          document.body.appendChild(a); a.click(); a.remove();
+          setTimeout(() => URL.revokeObjectURL(u), 800);
+          toast('已触发 JSON 备份下载');
+        } catch { toast('请使用“一键复制 JSON”保存'); }
+      };
+    }
+
+    function openImportModal() {
+      playTap();
+      const m = $('modal');
+      m.innerHTML = `<div class="sheet stack">
+        <div class="row"><span class="sec-t">导入 JSON 恢复账本</span><button type="button" id="m-x" class="badge bg-dim" style="padding:4px 11px">关闭 ✕</button></div>
+        <textarea id="imp-ta" class="inp" style="height:190px;font-size:11px;line-height:1.45" placeholder="粘贴之前导出的 JSON 备份内容…"></textarea>
+        <button type="button" id="imp-ok" class="btn gold">确认导入覆盖</button>
+      </div>`;
+      m.classList.remove('hidden');
+      $('m-x').onclick = closeModal;
+      $('imp-ok').onclick = () => {
+        try {
+          const obj = JSON.parse($('imp-ta').value.trim());
+          if (!obj || !Array.isArray(obj.records)) throw new Error('格式缺少 records 数组');
+          ST.records = obj.records;
+          if (obj.stamps && typeof obj.stamps === 'object') ST.stamps = obj.stamps;
+          if (obj.dailyLimit) ST.dailyLimit = Number(obj.dailyLimit) || 500000;
+          wLS(LS.RECS, ST.records); wLS(LS.STAMPS, ST.stamps); wLS(LS.LIMIT, ST.dailyLimit);
+          closeModal(); renderSettings(); renderCardFace();
+          playIncomeSound(); toast(`成功导入 ${ST.records.length} 条记录`);
+        } catch (err) { toast('导入失败：' + err.message); }
+      };
+    }
+
+    /* =========================================================================
+       9. 导航与全局事件绑定
+       ========================================================================= */
+    const TABS = [
+      { id: 'pos', name: '刷卡/入账' },
+      { id: 'ledger', name: '明细' },
+      { id: 'stmt', name: '偏爱账单' },
+      { id: 'set', name: '设置' }
+    ];
+
+    function switchTab(id) {
+      playTap();
+      ST.tab = id;
+      TABS.forEach(t => $('tab-' + t.id).classList.toggle('hidden', t.id !== id));
+      document.querySelectorAll('.tabbar .tbtn').forEach(btn => {
+        const meta = TABS.find(x => x.id === btn.dataset.tab);
+        btn.classList.toggle('active', btn.dataset.tab === id);
+        btn.innerHTML = `${ic(meta.id, 19)}<span>${meta.name}</span>`;
+      });
+      $('main').scrollTop = 0;
+      if (id === 'pos') renderPosForm();
+      else if (id === 'ledger') renderLedger();
+      else if (id === 'stmt') renderStmt();
+      else if (id === 'set') renderSettings();
+    }
+
+    function bindEvents() {
+      $('snd-btn').onclick = () => {
+        ST.cfg.sound = !ST.cfg.sound; wLS(LS.CFG, ST.cfg); syncTopBar();
+        if (ST.tab === 'set') renderSettings();
+        if (ST.cfg.sound) playSwipeSound();
+        toast(ST.cfg.sound ? '音效已开启' : '已切换为静音');
+      };
+
+      document.querySelectorAll('.tabbar .tbtn').forEach(b => { b.onclick = () => switchTab(b.dataset.tab); });
+
+      $('seg-exp').onclick = () => { if (ST.mode !== 'expense') { playTap(); ST.mode = 'expense'; renderPosForm(); } };
+      $('seg-inc').onclick = () => { if (ST.mode !== 'income') { playTap(); ST.mode = 'income'; renderPosForm(); } };
+      $('submit-btn').onclick = submitTransaction;
+
+      $('q-amts').onclick = e => { const b = e.target.closest('[data-qamt]'); if (b) { playTap(); $('f-amt').value = b.dataset.qamt; } };
+      $('exp-grps').onclick = e => { const b = e.target.closest('[data-egrp]'); if (b) { playTap(); ST.expGrp = b.dataset.egrp; renderPosForm(); } };
+      $('cat-tags').onclick = e => {
+        const eb = e.target.closest('[data-etag]');
+        if (eb) { playTap(); ST.expTag = eb.dataset.etag; renderPosForm(); return; }
+        const ib = e.target.closest('[data-itag]');
+        if (ib) { playTap(); ST.incTag = ib.dataset.itag; renderPosForm(); }
+      };
+
+      // 明细页筛选
+      $('ld-q').oninput = e => { ST.ldQuery = e.target.value; renderLedger(); };
+      $('ld-tabs').onclick = e => { const b = e.target.closest('[data-lf]'); if (b) { playTap(); ST.ldFilter = b.dataset.lf; renderLedger(); } };
+
+      // 偏爱账单月切换
+      const shiftM = d => {
+        playTap();
+        const [y, m] = ST.stmtMonth.split('-').map(Number);
+        const dt = new Date(y, m - 1 + d, 1);
+        ST.stmtMonth = `${dt.getFullYear()}-${pad2(dt.getMonth() + 1)}`;
+        renderStmt();
+      };
+      $('m-prev').onclick = () => shiftM(-1);
+      $('m-next').onclick = () => shiftM(1);
+
+      // 全局事件委托（语音条、撒娇快捷词、明细打开、盖章、音效测试）
+      $('app').addEventListener('click', e => {
+        const vc = e.target.closest('[data-vclose]');
+        if (vc) return closeVoice(vc.dataset.vclose);
+
+        const vp = e.target.closest('[data-vplay]');
+        if (vp) return startVoice(vp.dataset.vplay, vp.dataset.vtxt);
+
+        const sw = e.target.closest('[data-sw-rec]');
+        if (sw) return sendSweetPhrase(sw.dataset.swRec, sw.dataset.swTxt);
+
+        const op = e.target.closest('[data-open]');
+        if (op) return openDetailModal(op.dataset.open);
+
+        if (e.target.closest('#btn-stamp')) return slamStamp();
+
+        const sf = e.target.closest('[data-sfx]');
+        if (sf) {
+          if (!ST.cfg.sound) { ST.cfg.sound = true; wLS(LS.CFG, ST.cfg); renderSettings(); }
+          ({ swipe: playSwipeSound, print: playPrintSound, income: playIncomeSound, sweet: playSweetSound, stamp: playStampSound })[sf.dataset.sfx]?.();
+        }
+      });
+
+      // 自定义撒娇话术表单提交委托
+      $('app').addEventListener('submit', e => {
+        const fm = e.target.closest('form[data-sw-form]');
+        if (!fm) return;
+        e.preventDefault();
+        const inp = fm.querySelector('input');
+        const val = inp ? inp.value : '';
+        if (inp) { inp.value = ''; inp.blur(); }
+        sendSweetPhrase(fm.dataset.swForm, val);
+      });
+
+      $('modal').onclick = e => { if (e.target === $('modal')) closeModal(); };
+
+      // 设置页绑定
+      $('sw-snd').onclick = () => { ST.cfg.sound = !ST.cfg.sound; wLS(LS.CFG, ST.cfg); renderSettings(); if (ST.cfg.sound) playSwipeSound(); };
+      $('sw-ai').onclick = () => { ST.cfg.aiOn = !ST.cfg.aiOn; wLS(LS.CFG, ST.cfg); renderSettings(); toast(ST.cfg.aiOn ? 'Gemini 双引擎已开启' : '已切回本地超全词库'); };
+      $('api-eye').onclick = () => {
+        const inp = $('api-key'), show = inp.type === 'password';
+        inp.type = show ? 'text' : 'password';
+        $('api-eye').textContent = show ? '隐藏' : '显示';
+      };
+      $('api-save').onclick = () => {
+        ST.cfg.apiKey = $('api-key').value.trim();
+        ST.cfg.model = $('api-model').value;
+        wLS(LS.CFG, ST.cfg); syncTopBar(); playTap();
+        $('api-log').innerHTML = '<span style="color:var(--gold-hi)">✓ 配置已安全保存在本机。</span>';
+      };
+      $('api-test').onclick = async () => {
+        $('api-save').click();
+        const b = $('api-test'); b.disabled = true; b.textContent = '连接测试中…';
+        $('api-log').textContent = '正在向 Gemini 发送连通测试…';
+        const t0 = performance.now();
+        try {
+          await callGemini('仅返回 {"ok":true}');
+          $('api-log').innerHTML = `<span style="color:#9ae0be">✓ 连接成功（${Math.round(performance.now() - t0)} ms · ${esc(ST.cfg.model)}）</span>`;
+          playIncomeSound();
+        } catch (err) {
+          $('api-log').innerHTML = `<span style="color:#ffafb3">✕ 连接失败：${esc(err.message)}</span>`;
+        } finally { b.disabled = false; b.textContent = '测试连接'; }
+      };
+      $('lim-reset').onclick = () => {
+        ST.dailyLimit = 500000; wLS(LS.LIMIT, ST.dailyLimit); renderSettings(); renderCardFace();
+        playTap(); toast('副卡单日额度已重置为 ¥500,000');
+      };
+      $('btn-exp-json').onclick = openExportModal;
+      $('btn-imp-json').onclick = openImportModal;
+      $('btn-clear-all').onclick = () => {
+        if (!ST.clearArmed) {
+          ST.clearArmed = true;
+          $('btn-clear-all').textContent = '再次点击确认清空全部记录（保留 API Key）';
+          setTimeout(() => { ST.clearArmed = false; if ($('btn-clear-all')) $('btn-clear-all').textContent = '清空全部记录'; }, 4000);
+          return;
+        }
+        ST.clearArmed = false;
+        ST.records = []; ST.stamps = {}; ST.lastTxId = null;
+        wLS(LS.RECS, ST.records); wLS(LS.STAMPS, ST.stamps);
+        renderPosOut(null); renderCardFace();
+        $('btn-clear-all').textContent = '清空全部记录';
+        playTap(); toast('已清空全部账单记录');
+      };
+    }
+
+    window.onload = function () {
+      syncViewportHeight();
+      loadRecords();
+      syncTopBar();
+      bindEvents();
+      renderPosForm();
+      switchTab('pos');
+    };
+  </script>
+</body>
+</html>
