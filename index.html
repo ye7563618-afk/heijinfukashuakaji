@@ -88,6 +88,7 @@
       background: rgba(214, 178, 124, 0.12); border: 1px solid rgba(214, 178, 124, 0.34); color: var(--gold-hi);
     }
     .pill-eng.ai { background: rgba(229, 169, 156, 0.16); border-color: rgba(229, 169, 156, 0.45); color: #f8cfc6; }
+    .pill-eng.oa { background: rgba(88, 184, 138, 0.16); border-color: rgba(88, 184, 138, 0.45); color: #a7e8c9; }
     .snd-btn {
       width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
       display: inline-flex; align-items: center; justify-content: center;
@@ -120,6 +121,7 @@
     /* 通用基础组件 */
     button { border: none; background: none; color: inherit; font-family: inherit; cursor: pointer; padding: 0; }
     button:active { transform: scale(0.96); }
+    button:disabled { opacity: 0.58; pointer-events: none; }
     .hidden { display: none !important; }
     .stack { display: flex; flex-direction: column; gap: 12px; }
     .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
@@ -152,15 +154,17 @@
     #banner.income { border-color: rgba(88, 184, 138, 0.48); }
     #banner.show { transform: translateY(0); opacity: 1; pointer-events: auto; }
 
-    /* 顶部收支切换器 */
+    /* 顶部收支切换器 & 协议切换器 */
     .seg {
       display: grid; grid-template-columns: 1fr 1fr; gap: 5px; padding: 4px;
       background: var(--card); border: 1px solid var(--line); border-radius: 16px;
     }
+    .seg.sub { background: #0c0c11; border-radius: 14px; padding: 3px; }
     .seg-btn {
       padding: 9px 6px; border-radius: 12px; font-size: 12px; font-weight: 500;
       color: var(--muted); text-align: center; transition: all 0.22s ease;
     }
+    .seg.sub .seg-btn { padding: 7px 6px; font-size: 11.5px; border-radius: 10px; }
     .seg-btn.exp-on {
       background: linear-gradient(135deg, rgba(214,178,124,0.22), rgba(214,178,124,0.08));
       border: 1px solid rgba(214, 178, 124, 0.48); color: var(--gold-hi); font-weight: 600;
@@ -422,6 +426,7 @@
     }
     .btn.gold { background: var(--gold); border-color: var(--gold); color: #08090c; font-weight: 600; }
     .btn.soft { background: rgba(214, 178, 124, 0.12); border-color: rgba(214, 178, 124, 0.36); color: var(--gold-hi); }
+    .btn.em   { background: rgba(88, 184, 138, 0.14); border-color: rgba(88, 184, 138, 0.38); color: #a7e8c9; }
     .btn.red  { background: rgba(226, 109, 114, 0.12); border-color: rgba(226, 109, 114, 0.36); color: #ffafb3; }
     .lbl { display: block; font-size: 11px; color: #d0cabf; margin-bottom: 5px; }
 
@@ -618,15 +623,23 @@
           <button type="button" data-sfx="stamp" class="btn soft" style="margin-top:8px">落印音（主卡盖章）</button>
         </div>
 
+        <!-- 升级版：Gemini 3.5 原生 + OpenAI 兼容（OA）双协议引擎 -->
         <div class="card">
           <div class="row">
             <div>
-              <div class="sec-t">Gemini API 双引擎</div>
-              <div class="sec-s" style="margin-top:2px">开启后支出、收入与撒娇对话均可实时生成</div>
+              <div class="sec-t">AI 双协议引擎（Gemini / OA 兼容）</div>
+              <div class="sec-s" style="margin-top:2px">支持最新 Gemini 3.5 及各类 OpenAI 格式中转 / DeepSeek 等；断网自动回退本地词库</div>
             </div>
-            <button id="sw-ai" type="button" class="sw" aria-label="开启 Gemini API"><i></i></button>
+            <button id="sw-ai" type="button" class="sw" aria-label="开启 AI 实时引擎"><i></i></button>
           </div>
-          <div class="stack" style="gap:9px;margin-top:12px">
+
+          <div class="seg sub" style="margin-top:12px">
+            <button id="prov-gemini" type="button" class="seg-btn exp-on">Gemini 原生接口</button>
+            <button id="prov-openai" type="button" class="seg-btn">OpenAI 兼容 (OA)</button>
+          </div>
+
+          <!-- Gemini 原生配置面板 -->
+          <div id="pane-gemini" class="stack" style="gap:9px;margin-top:11px">
             <div>
               <label class="lbl">Google AI Studio API Key（仅存本机 localStorage）</label>
               <div style="display:flex;gap:6px">
@@ -635,19 +648,55 @@
               </div>
             </div>
             <div>
-              <label class="lbl">模型选择</label>
-              <select id="api-model" class="inp">
-                <option value="gemini-2.5-flash">gemini-2.5-flash（推荐）</option>
-                <option value="gemini-2.5-pro">gemini-2.5-pro</option>
-                <option value="gemini-2.0-flash">gemini-2.0-flash</option>
-              </select>
+              <div class="row" style="margin-bottom:5px">
+                <label class="lbl" style="margin-bottom:0">模型选择（含 3.5 / 3.0 / 2.5 全系列）</label>
+                <span id="gem-active-bdg" class="badge bg-dim" style="font-size:9.5px">gemini-3.5-flash-lite</span>
+              </div>
+              <select id="api-model" class="inp"></select>
             </div>
-            <div class="g2">
-              <button id="api-save" type="button" class="btn gold">保存配置</button>
-              <button id="api-test" type="button" class="btn">测试连接</button>
+            <button id="btn-fetch-gem" type="button" class="btn em">✦ 一键拉取当前密钥可用模型</button>
+            <div>
+              <label class="lbl">手动指定模型名（选填 · 填写后优先于上方下拉框）</label>
+              <input id="api-model-custom" class="inp" type="text" autocomplete="off" placeholder="例如：gemini-3.5-flash-lite（留空则用下拉框）">
             </div>
-            <div id="api-log" style="font-size:11px;color:var(--muted);line-height:1.5;min-height:15px"></div>
           </div>
+
+          <!-- OpenAI 兼容 (OA) 配置面板 -->
+          <div id="pane-openai" class="stack hidden" style="gap:9px;margin-top:11px">
+            <div>
+              <label class="lbl">常用 OA 接口一键填入（也支持任意兼容中转站地址）</label>
+              <div id="oa-presets" class="hscroll"></div>
+            </div>
+            <div>
+              <label class="lbl">接口地址 Base URL（支持带或不带 /v1）</label>
+              <input id="oa-url" class="inp" type="url" autocomplete="off" placeholder="例如：https://api.openai.com/v1 或你的中转站地址">
+            </div>
+            <div>
+              <label class="lbl">OA API Key（sk-...，仅存本机 localStorage）</label>
+              <div style="display:flex;gap:6px">
+                <input id="oa-key" class="inp" type="password" autocomplete="off" placeholder="粘贴你的 sk-... 密钥">
+                <button id="oa-eye" type="button" class="badge bg-em" style="padding:0 12px;border-radius:12px">显示</button>
+              </div>
+            </div>
+            <div>
+              <div class="row" style="margin-bottom:5px">
+                <label class="lbl" style="margin-bottom:0">模型选择</label>
+                <span id="oa-active-bdg" class="badge bg-dim" style="font-size:9.5px">gpt-4o-mini</span>
+              </div>
+              <select id="oa-model" class="inp"></select>
+            </div>
+            <button id="btn-fetch-oa" type="button" class="btn em">✦ 一键拉取 OA 接口可用模型 (/models)</button>
+            <div>
+              <label class="lbl">手动指定任意模型名（选填 · 中转站专属模型直接填这里）</label>
+              <input id="oa-model-custom" class="inp" type="text" autocomplete="off" placeholder="例如：gpt-4o-mini / deepseek-chat / claude-sonnet-4-5">
+            </div>
+          </div>
+
+          <div class="g2" style="margin-top:11px">
+            <button id="api-save" type="button" class="btn gold">保存配置</button>
+            <button id="api-test" type="button" class="btn">测试连接</button>
+          </div>
+          <div id="api-log" style="font-size:11px;color:var(--muted);line-height:1.5;min-height:16px;margin-top:8px;word-break:break-word"></div>
         </div>
 
         <div class="card">
@@ -668,7 +717,7 @@
           </div>
           <button id="btn-clear-all" type="button" class="btn red" style="margin-top:8px">清空全部记录</button>
           <div class="sec-s" style="margin-top:10px;line-height:1.55">
-            XINLAN PRIVATE · 迟川黑金副卡（iPhone 14 Pro 全屏 PWA 版）<br>
+            XINLAN PRIVATE · 迟川黑金副卡（iPhone 14 Pro 全屏 PWA · 双协议 AI 版）<br>
             所有账单、甜话互动、盖章与密钥均仅保存在本机浏览器本地。
           </div>
         </div>
@@ -781,7 +830,6 @@
     }
     function playSweetSound() {
       const ac = getAC(); if (!ac) return;
-      // 轻柔双和弦 + 暖心低频轻跳
       tone(ac, 783.99, 0.01, 0.22, 0.09, 'sine');
       tone(ac, 1046.50, 0.10, 0.3, 0.095, 'sine');
       const t = ac.currentTime + 0.04;
@@ -958,7 +1006,7 @@
       ]
     };
 
-    // 6 大收入分类 + 关键词回复库（尊重她的独立与努力，由衷骄傲 + 主卡全额托底）
+    // 6 大收入分类 + 关键词回复库
     const INC_KW = [
       { id: 'inc_dad', re: /爸爸|迟川|老公|零花/, pool: [
         R('给我太太的零花钱本来就该直接进你小金库。收好随便支配，买什么都不用报备，花完了爸爸再补。', '（轻笑，语气坦然温柔）不用和我客气，宝宝。我的就是你的，开心花就行。', '专属宠爱 · 随时可续')
@@ -1048,8 +1096,40 @@
     ];
 
     /* =========================================================================
-       4. 状态管理、本地持久化 & 永久语音转文字状态机
+       4. 模型预设、状态管理、本地持久化 & 永久语音转文字状态机
        ========================================================================= */
+    const DEFAULT_GEM_MODEL = 'gemini-3.5-flash-lite';
+    const GEM_PRESETS = [
+      { id: 'gemini-3.5-flash-lite', label: 'gemini-3.5-flash-lite（新免费密钥推荐）' },
+      { id: 'gemini-3.5-flash', label: 'gemini-3.5-flash' },
+      { id: 'gemini-3.5-pro', label: 'gemini-3.5-pro' },
+      { id: 'gemini-3.0-flash', label: 'gemini-3.0-flash' },
+      { id: 'gemini-3.0-pro', label: 'gemini-3.0-pro' },
+      { id: 'gemini-2.5-flash', label: 'gemini-2.5-flash（旧密钥兼容）' },
+      { id: 'gemini-2.5-pro', label: 'gemini-2.5-pro' },
+      { id: 'gemini-2.0-flash', label: 'gemini-2.0-flash' }
+    ];
+
+    const OA_ENDPOINTS = [
+      { name: 'OpenAI 官方', url: 'https://api.openai.com/v1', model: 'gpt-4o-mini' },
+      { name: 'DeepSeek', url: 'https://api.deepseek.com/v1', model: 'deepseek-chat' },
+      { name: '硅基流动', url: 'https://api.siliconflow.cn/v1', model: 'deepseek-ai/DeepSeek-V3' },
+      { name: 'OpenRouter', url: 'https://openrouter.ai/api/v1', model: 'google/gemini-3.5-flash-lite' }
+    ];
+    const OA_PRESETS = [
+      { id: 'gpt-4o-mini', label: 'gpt-4o-mini（性价比推荐）' },
+      { id: 'gpt-4o', label: 'gpt-4o' },
+      { id: 'gpt-4.1-mini', label: 'gpt-4.1-mini' },
+      { id: 'gpt-4.1', label: 'gpt-4.1' },
+      { id: 'gpt-5-mini', label: 'gpt-5-mini' },
+      { id: 'deepseek-chat', label: 'deepseek-chat' },
+      { id: 'deepseek-reasoner', label: 'deepseek-reasoner' },
+      { id: 'claude-sonnet-4-5', label: 'claude-sonnet-4-5' },
+      { id: 'gemini-3.5-flash-lite', label: 'gemini-3.5-flash-lite（中转）' },
+      { id: 'gemini-3.5-flash', label: 'gemini-3.5-flash（中转）' }
+    ];
+
+    // 完整保留原版 localStorage 键名，升级覆盖零数据丢失
     const LS = {
       RECS: 'cc_dual_recs_v2',
       CFG: 'cc_dual_cfg_v2',
@@ -1071,13 +1151,12 @@
       return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
     };
 
-    // 独立永久语音转文字状态机（绝不自动消失）
     const voiceState = {};
     const voiceTimers = {};
 
     const ST = {
       tab: 'pos',
-      mode: 'expense', // 'expense' | 'income'
+      mode: 'expense',
       expGrp: 'food',
       expTag: '甜品奶茶',
       incTag: '工资薪资',
@@ -1090,10 +1169,39 @@
       modalRecId: null,
       busy: false,
       clearArmed: false,
-      cfg: Object.assign({ sound: true, aiOn: false, apiKey: '', model: 'gemini-2.5-flash' }, rLS(LS.CFG, {})),
+      cfg: Object.assign({
+        sound: true,
+        aiOn: false,
+        provider: 'gemini',
+        apiKey: '',
+        model: DEFAULT_GEM_MODEL,
+        customModel: '',
+        fetchedModels: [],
+        oaBaseUrl: 'https://api.openai.com/v1',
+        oaApiKey: '',
+        oaModel: 'gpt-4o-mini',
+        oaCustomModel: '',
+        oaFetchedModels: []
+      }, rLS(LS.CFG, {})),
       stamps: rLS(LS.STAMPS, {}),
       records: []
     };
+
+    // 自动平滑迁移旧版缓存中的 gemini-2.x / 1.x 默认值至 gemini-3.5-flash-lite（仅当未开启手填且尚未迁移过时）
+    (function migrateCfg() {
+      let dirty = false;
+      if (!ST.cfg.provider) { ST.cfg.provider = 'gemini'; dirty = true; }
+      if (!Array.isArray(ST.cfg.fetchedModels)) { ST.cfg.fetchedModels = []; dirty = true; }
+      if (!Array.isArray(ST.cfg.oaFetchedModels)) { ST.cfg.oaFetchedModels = []; dirty = true; }
+      if (!ST.cfg.migrated35) {
+        if (!ST.cfg.model || /gemini-[12]\./i.test(ST.cfg.model)) {
+          ST.cfg.model = DEFAULT_GEM_MODEL;
+        }
+        ST.cfg.migrated35 = true;
+        dirty = true;
+      }
+      if (dirty) wLS(LS.CFG, ST.cfg);
+    })();
 
     function seedRecords() {
       const now = Date.now();
@@ -1141,7 +1249,7 @@
     }
 
     /* =========================================================================
-       5. 本地回复引擎 & Gemini API 双引擎
+       5. 本地回复引擎 + Gemini 3.5 / OpenAI (OA) 兼容双协议引擎
        ========================================================================= */
     function localTxReply(tx) {
       const textAll = `${tx.title} ${tx.note}`;
@@ -1156,7 +1264,6 @@
         };
       }
 
-      // 支出匹配：关键词 -> 细分标签 -> 深夜 / 大额 / 小额修饰
       let base = null;
       for (const r of EXP_KW) { if (r.re.test(textAll)) { base = pickFresh('ekw_' + r.id, r.pool); break; } }
       if (!base) base = pickFresh('etag_' + tx.tag, EXP_TAG_MAP[tx.tag] || EXP_TAG_MAP['礼物其他']);
@@ -1209,12 +1316,71 @@
     const SYS_PROMPT = `你是迟川（Cyrus），28岁，12月29日摩羯座，INTJ，新岚能源CEO。用户是妻子迟琰（唤她“宝宝”或“琰琰”，她唤你“爸爸”）。
 性格与细节：成熟直接、深情克制、蓝图式守护；对麸质过敏但乐意给宝宝买面包，爱吃牛肉海鲜，坐高铁会提醒避开中间B座，每日晨泳，悄悄织羊绒毛衣养多肉，建有《关于迟琰》备忘录。
 铁律：严禁冷嘲热讽、阴阳怪气、翻旧账、说教、物化或“以前...现在...”时间反差句；严禁结尾给二选一；尊重她的独立与个人收入。
-只返回合法 JSON。`;
+只返回合法 JSON 对象，不要包含任何 Markdown 代码块标记或多余解释。`;
+
+    function getActiveGemModel() {
+      const c = (ST.cfg.customModel || '').trim().replace(/^models\//i, '');
+      return c || (ST.cfg.model || DEFAULT_GEM_MODEL).trim().replace(/^models\//i, '');
+    }
+
+    function getActiveOaModel() {
+      const c = (ST.cfg.oaCustomModel || '').trim();
+      return c || (ST.cfg.oaModel || 'gpt-4o-mini').trim();
+    }
+
+    function normalizeOaBase(raw) {
+      let u = String(raw || '').trim().replace(/\/+$/, '');
+      if (!u) return 'https://api.openai.com/v1';
+      if (/\/chat\/completions$/i.test(u)) u = u.replace(/\/chat\/completions$/i, '');
+      if (/\/models$/i.test(u)) u = u.replace(/\/models$/i, '');
+      return u;
+    }
+
+    function isAiReady() {
+      if (!ST.cfg.aiOn) return false;
+      if (ST.cfg.provider === 'openai') {
+        return !!(ST.cfg.oaApiKey || '').trim() && !!(ST.cfg.oaBaseUrl || '').trim();
+      }
+      return !!(ST.cfg.apiKey || '').trim();
+    }
+
+    function parseLooseJSON(raw) {
+      const cleaned = String(raw || '').trim()
+        .replace(/^```json\s*/i, '')
+        .replace(/^```\s*/i, '')
+        .replace(/```\s*$/i, '')
+        .trim();
+      try { return JSON.parse(cleaned); } catch {}
+      const s = cleaned.indexOf('{'), e = cleaned.lastIndexOf('}');
+      if (s !== -1 && e > s) {
+        try { return JSON.parse(cleaned.slice(s, e + 1)); } catch {}
+      }
+      return null;
+    }
+
+    function scoreGemModel(id) {
+      const s = id.toLowerCase();
+      let score = 0;
+      if (s === 'gemini-3.5-flash-lite') score += 2000;
+      else if (s.startsWith('gemini-3.5-flash-lite')) score += 1850;
+      else if (s === 'gemini-3.5-flash') score += 1700;
+      else if (s.includes('3.5')) score += 1500;
+      else if (s.includes('3.0') || s.includes('gemini-3-')) score += 1300;
+      else if (/gemini-4/i.test(s)) score += 1600;
+      else if (s.includes('2.5')) score += 400;
+      else if (s.includes('2.0')) score += 250;
+      else score += 100;
+      if (s.includes('flash-lite')) score += 220;
+      else if (s.includes('flash')) score += 160;
+      else if (s.includes('pro')) score += 90;
+      if (s.includes('preview') || s.includes('exp')) score -= 25;
+      return score;
+    }
 
     async function callGemini(prompt) {
-      const key = ST.cfg.apiKey.trim();
-      if (!key) throw new Error('未填写 API Key');
-      const model = ST.cfg.model || 'gemini-2.5-flash';
+      const key = (ST.cfg.apiKey || '').trim();
+      if (!key) throw new Error('未填写 Gemini API Key');
+      const model = getActiveGemModel();
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(key)}`;
       const res = await fetch(url, {
         method: 'POST',
@@ -1228,40 +1394,166 @@
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error?.message || `HTTP ${res.status}`);
       const txt = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-      return JSON.parse(txt.replace(/^```json\s*/i,'').replace(/^```\s*/i,'').replace(/```\s*$/i,'').trim());
+      const parsed = parseLooseJSON(txt);
+      if (!parsed) throw new Error('返回格式无法解析为 JSON');
+      return parsed;
+    }
+
+    async function callOpenAI(prompt) {
+      const key = (ST.cfg.oaApiKey || '').trim();
+      const base = normalizeOaBase(ST.cfg.oaBaseUrl);
+      if (!key) throw new Error('未填写 OA API Key');
+      const model = getActiveOaModel();
+      const url = `${base}/chat/completions`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${key}`
+        },
+        body: JSON.stringify({
+          model,
+          temperature: 0.85,
+          messages: [
+            { role: 'system', content: SYS_PROMPT },
+            { role: 'user', content: prompt }
+          ]
+        })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error?.message || data?.message || `HTTP ${res.status}`);
+      const content = data?.choices?.[0]?.message?.content;
+      const txt = Array.isArray(content)
+        ? content.map(p => p?.text || '').join('')
+        : String(content || '');
+      const parsed = parseLooseJSON(txt);
+      if (parsed) return parsed;
+      // 若部分中转模型直接返回自然语言文本，兜底包裹不报错
+      if (txt.trim()) return { ok: true, reply: txt.trim(), text: txt.trim() };
+      throw new Error('接口返回空内容');
+    }
+
+    async function callAI(prompt) {
+      if (ST.cfg.provider === 'openai') {
+        const j = await callOpenAI(prompt);
+        return { data: j, engine: 'openai' };
+      }
+      const j = await callGemini(prompt);
+      return { data: j, engine: 'ai' };
+    }
+
+    async function fetchGemModels() {
+      const key = ($('api-key').value || ST.cfg.apiKey || '').trim();
+      if (!key) {
+        $('api-log').innerHTML = '<span style="color:#ffafb3">✕ 请先粘贴你的 Gemini API Key 再拉取模型。</span>';
+        toast('请先填写 Gemini Key'); return;
+      }
+      ST.cfg.apiKey = key; wLS(LS.CFG, ST.cfg);
+      const btn = $('btn-fetch-gem');
+      btn.disabled = true; btn.textContent = '正在查询 Google 可用模型…';
+      $('api-log').textContent = '正在拉取 v1beta/models 列表…';
+      try {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(key)}`);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.error?.message || `HTTP ${res.status}`);
+        const valid = (Array.isArray(data.models) ? data.models : [])
+          .filter(m => {
+            const methods = Array.isArray(m.supportedGenerationMethods) ? m.supportedGenerationMethods : [];
+            const id = String(m.name || '').replace(/^models\//i, '');
+            return methods.includes('generateContent') && /gemini/i.test(id) && !/(embedding|aqa|imagen|veo|tts|audio-only)/i.test(id);
+          })
+          .map(m => {
+            const id = String(m.name || '').replace(/^models\//i, '');
+            const tag = id === 'gemini-3.5-flash-lite' ? '（免费推荐）' : /flash-lite/i.test(id) ? '（轻量优选）' : '';
+            return { id, label: `${id}${tag}` };
+          })
+          .sort((a, b) => scoreGemModel(b.id) - scoreGemModel(a.id));
+        if (!valid.length) throw new Error('未找到支持对话生成的 Gemini 模型');
+        ST.cfg.fetchedModels = valid;
+        ST.cfg.model = valid[0].id;
+        if (!$('api-model-custom').value.trim()) ST.cfg.customModel = '';
+        wLS(LS.CFG, ST.cfg);
+        renderModelSelects();
+        playIncomeSound();
+        $('api-log').innerHTML = `<span style="color:#9ae0be">✓ 成功拉取 ${valid.length} 个 Gemini 模型，已自动选中 <strong>${esc(valid[0].id)}</strong>。</span>`;
+        toast(`已拉取 ${valid.length} 个可用模型`);
+      } catch (err) {
+        $('api-log').innerHTML = `<span style="color:#ffafb3">✕ 拉取失败：${esc(err.message)}</span>`;
+      } finally {
+        btn.disabled = false; btn.textContent = '✦ 一键拉取当前密钥可用模型';
+      }
+    }
+
+    async function fetchOaModels() {
+      const base = normalizeOaBase($('oa-url').value || ST.cfg.oaBaseUrl);
+      const key = ($('oa-key').value || ST.cfg.oaApiKey || '').trim();
+      if (!key) {
+        $('api-log').innerHTML = '<span style="color:#ffafb3">✕ 请先填写 OA API Key 再拉取模型。</span>';
+        toast('请先填写 OA Key'); return;
+      }
+      ST.cfg.oaBaseUrl = base; ST.cfg.oaApiKey = key; wLS(LS.CFG, ST.cfg);
+      const btn = $('btn-fetch-oa');
+      btn.disabled = true; btn.textContent = '正在拉取 /models 列表…';
+      $('api-log').textContent = `正在请求 ${base}/models …`;
+      try {
+        const res = await fetch(`${base}/models`, {
+          headers: { 'Authorization': `Bearer ${key}` }
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data?.error?.message || data?.message || `HTTP ${res.status}`);
+        const raw = Array.isArray(data.data) ? data.data : (Array.isArray(data.models) ? data.models : []);
+        const valid = raw
+          .map(m => typeof m === 'string' ? m : String(m?.id || m?.name || ''))
+          .filter(id => id && !/(embedding|whisper|tts|dall-e|moderation|babbage|davinci|rerank)/i.test(id))
+          .sort((a, b) => a.localeCompare(b))
+          .map(id => ({ id, label: id }));
+        if (!valid.length) throw new Error('接口未返回可用对话模型列表，可直接手动输入模型名');
+        ST.cfg.oaFetchedModels = valid;
+        if (!valid.some(x => x.id === ST.cfg.oaModel)) ST.cfg.oaModel = valid[0].id;
+        wLS(LS.CFG, ST.cfg);
+        renderModelSelects();
+        playIncomeSound();
+        $('api-log').innerHTML = `<span style="color:#9ae0be">✓ 成功拉取 ${valid.length} 个 OA 模型，已更新至下拉列表。</span>`;
+        toast(`已拉取 ${valid.length} 个 OA 模型`);
+      } catch (err) {
+        $('api-log').innerHTML = `<span style="color:#ffafb3">✕ 拉取失败（部分中转站禁用了 /models，可直接在下方手动填模型名）：${esc(err.message)}</span>`;
+      } finally {
+        btn.disabled = false; btn.textContent = '✦ 一键拉取 OA 接口可用模型 (/models)';
+      }
     }
 
     async function resolveTxReply(tx) {
       const loc = localTxReply(tx);
-      if (!ST.cfg.aiOn || !ST.cfg.apiKey.trim()) return loc;
+      if (!isAiReady()) return loc;
       try {
         const prompt = tx.type === 'income'
-          ? `迟琰记录了一笔个人收入存入「宝宝小金库」：分类「${tx.tag}」，标题「${tx.title}」，金额 ¥${tx.amount.toFixed(2)}，备注「${tx.note || '无'}」。请以迟川口吻由衷夸奖与骄傲，并强调副卡开销全由你承担、她的收入100%留给她自己开心。返回JSON：{"reply":"2-3句回应","voice":"1句带神态括号的语音文案","memo":"12字内批注"}`
-          : `迟琰刷了你的黑金副卡（支出）：分类「${tx.group}·${tx.tag}」，标题「${tx.title}」，金额 ¥${tx.amount.toFixed(2)}，时间 ${tStr(tx.ts)}，备注「${tx.note || '无'}」。${tx.amount >= 5000 ? `大额已上调单日额度至${moneyInt(ST.dailyLimit)}。` : ''}返回JSON：{"reply":"2-3句贴心回应","voice":"1句带神态括号的语音文案","memo":"12字内批注","alert":false}`;
-        const j = await callGemini(prompt);
+          ? `迟琰记录了一笔个人收入存入「宝宝小金库」：分类「${tx.tag}」，标题「${tx.title}」，金额 ¥${tx.amount.toFixed(2)}，备注「${tx.note || '无'}」。请以迟川口吻由衷夸奖与骄傲，并强调副卡开销全由你承担、她的收入100%留给她自己开心。只返回合法JSON：{"reply":"2-3句回应","voice":"1句带神态括号的语音文案","memo":"12字内批注"}`
+          : `迟琰刷了你的黑金副卡（支出）：分类「${tx.group}·${tx.tag}」，标题「${tx.title}」，金额 ¥${tx.amount.toFixed(2)}，时间 ${tStr(tx.ts)}，备注「${tx.note || '无'}」。${tx.amount >= 5000 ? `大额已上调单日额度至${moneyInt(ST.dailyLimit)}。` : ''}只返回合法JSON：{"reply":"2-3句贴心回应","voice":"1句带神态括号的语音文案","memo":"12字内批注","alert":false}`;
+        const { data: j, engine } = await callAI(prompt);
         if (!j || !j.reply) throw new Error('空响应');
         const v = String(j.voice || loc.voice);
         return {
           ...loc, reply: String(j.reply), voice: v,
           voiceSec: Math.max(7, Math.min(16, Math.round(v.length / 5.2))),
           memo: String(j.memo || loc.memo),
-          alert: Boolean(j.alert) || loc.alert, engine: 'ai'
+          alert: Boolean(j.alert) || loc.alert, engine
         };
       } catch {
-        toast('Gemini 暂不可用，已自动切回本地词库');
+        toast('AI 接口暂不可用，已自动切回本地词库');
         return loc;
       }
     }
 
     async function resolveSweetReply(phrase, tx) {
       const loc = localSweetReply(phrase, tx);
-      if (!ST.cfg.aiOn || !ST.cfg.apiKey.trim()) return loc;
+      if (!isAiReady()) return loc;
       try {
-        const prompt = `刚才迟琰记了一笔「${tx.title}」（¥${tx.amount.toFixed(2)}），随后她甜腻地对你撒娇说：“${phrase}”。请以迟川（深情稳重、略带耳根发烫的INTJ）温柔接住她的撒娇。返回JSON：{"text":"2句温柔回应","voice":"1句带神态括号的短语音"}`;
-        const j = await callGemini(prompt);
-        if (!j || !j.text) throw new Error('空响应');
+        const prompt = `刚才迟琰记了一笔「${tx.title}」（¥${tx.amount.toFixed(2)}），随后她甜腻地对你撒娇说：“${phrase}”。请以迟川（深情稳重、略带耳根发烫的INTJ）温柔接住她的撒娇。只返回合法JSON：{"text":"2句温柔回应","voice":"1句带神态括号的短语音"}`;
+        const { data: j, engine } = await callAI(prompt);
+        const replyTxt = j && (j.text || j.reply);
+        if (!replyTxt) throw new Error('空响应');
         const v = String(j.voice || loc.voice);
-        return { text: String(j.text), voice: v, voiceSec: Math.max(6, Math.min(14, Math.round(v.length / 5.2))), engine: 'ai' };
+        return { text: String(replyTxt), voice: v, voiceSec: Math.max(6, Math.min(14, Math.round(v.length / 5.2))), engine };
       } catch {
         return loc;
       }
@@ -1353,9 +1645,10 @@
        7. 核心视图渲染（TAB 1–4 + 甜腻撒娇互动区）
        ========================================================================= */
     function syncTopBar() {
-      const aiLive = ST.cfg.aiOn && !!ST.cfg.apiKey.trim();
-      $('eng-pill').textContent = aiLive ? 'Gemini 双引擎' : '本地超全词库';
-      $('eng-pill').className = `pill-eng ${aiLive ? 'ai' : ''}`;
+      const ready = isAiReady();
+      const isOA = ST.cfg.provider === 'openai';
+      $('eng-pill').textContent = ready ? (isOA ? 'OA 实时引擎' : 'Gemini 实时') : '本地超全词库';
+      $('eng-pill').className = `pill-eng ${ready ? (isOA ? 'oa' : 'ai') : ''}`;
       $('snd-btn').innerHTML = ic(ST.cfg.sound ? 'sndOn' : 'sndOff', 15);
       $('snd-btn').classList.toggle('off', !ST.cfg.sound);
     }
@@ -1484,11 +1777,14 @@
       const isInc = tx.type === 'income';
       const uid = `${scope}_main_${tx.id}`;
       const thread = tx.thread || [];
+      const engLabel = tx.engine === 'openai' ? 'OA 实时' : tx.engine === 'ai' ? 'Gemini 实时' : '本地词库';
+      const engCls = tx.engine === 'openai' ? 'bg-em' : tx.engine === 'ai' ? 'bg-rose' : isInc ? 'bg-em' : 'bg-gold';
+
       const threadHTML = thread.length ? `<div class="thread">${thread.map((m, idx) => {
         if (m.role === 'user') return `<div class="bub-me"><div style="font-size:9.5px;color:#f5c2b6;margin-bottom:2px">迟琰 · ${esc(m.t || '')}</div>${esc(m.text)}</div>`;
         const vuid = `${scope}_th_${tx.id}_${idx}`;
         return `<div class="bub-dad">
-          <div style="font-size:10px;color:var(--gold-hi);font-weight:600;margin-bottom:3px">迟川 · 秒回宝宝 ${m.engine === 'ai' ? '✦' : ''}</div>
+          <div style="font-size:10px;color:var(--gold-hi);font-weight:600;margin-bottom:3px">迟川 · 秒回宝宝 ${m.engine === 'openai' || m.engine === 'ai' ? '✦' : ''}</div>
           <div>${esc(m.text)}</div>
           ${m.voice ? voiceBlockHTML(vuid, m.voiceSec || 8, m.voice) : ''}
         </div>`;
@@ -1503,13 +1799,13 @@
               <div class="sec-s">${tStr(tx.ts)}</div>
             </div>
           </div>
-          <span class="badge ${tx.engine === 'ai' ? 'bg-rose' : isInc ? 'bg-em' : 'bg-gold'}">${tx.engine === 'ai' ? 'Gemini 实时' : '本地词库'}</span>
+          <span class="badge ${engCls}">${engLabel}</span>
         </div>
         <div class="rtext">${esc(tx.reply)}</div>
         <div class="memo-tag">✦ ${esc(tx.memo)}</div>
         ${tx.voice ? voiceBlockHTML(uid, tx.voiceSec || 9, tx.voice) : ''}
 
-        <!-- 核心：给爸爸回一句甜话 -->
+        <!-- 给爸爸回一句甜话 -->
         <div class="sweet-sec">
           <div class="sweet-ttl">
             <span>♥ 给爸爸回一句甜话</span>
@@ -1595,7 +1891,6 @@
       $('st-exp-cnt').textContent = `${exps.length} 笔`;
       $('st-inc-cnt').textContent = `${incs.length} 笔`;
 
-      // 支出分类进度条
       $('st-exp-bars').innerHTML = EXP_GROUPS.map(g => {
         const val = exps.filter(r => r.group === g.name).reduce((a, r) => a + r.amount, 0);
         const pct = expSum > 0 ? Math.round((val / expSum) * 100) : 0;
@@ -1605,7 +1900,6 @@
         </div>`;
       }).join('');
 
-      // 收入来源进度条
       $('st-inc-bars').innerHTML = INC_TAGS.map(it => {
         const val = incs.filter(r => r.tag === it.tag).reduce((a, r) => a + r.amount, 0);
         const pct = incSum > 0 ? Math.round((val / incSum) * 100) : 0;
@@ -1615,7 +1909,6 @@
         </div>`;
       }).join('');
 
-      // 动态月度批注
       $('st-sweet-stat').textContent = `本月收到宝宝 ${sweetCnt} 次甜话撒娇`;
       let note = '';
       if (!exps.length && !incs.length) {
@@ -1631,7 +1924,6 @@
       }
       $('st-review').textContent = note;
 
-      // 盖章状态
       const stamped = ST.stamps[mk];
       $('st-stamp-bdg').textContent = stamped ? '已核销结清' : '待盖章核销';
       $('st-stamp-bdg').className = `badge ${stamped ? 'bg-gold' : 'bg-dim'}`;
@@ -1645,11 +1937,45 @@
           <button id="btn-stamp" type="button" class="act-btn" style="margin-top:0">由主卡全额盖章核销</button>`;
     }
 
+    function renderModelSelects() {
+      // Gemini 下拉框
+      const gemList = (ST.cfg.fetchedModels && ST.cfg.fetchedModels.length) ? ST.cfg.fetchedModels : GEM_PRESETS;
+      const gCur = ST.cfg.model || DEFAULT_GEM_MODEL;
+      const gFinal = gemList.some(x => x.id === gCur) ? gemList : [{ id: gCur, label: gCur }, ...gemList];
+      $('api-model').innerHTML = gFinal.map(m => `<option value="${esc(m.id)}">${esc(m.label || m.id)}</option>`).join('');
+      $('api-model').value = gCur;
+      $('gem-active-bdg').textContent = getActiveGemModel();
+
+      // OA 下拉框
+      const oaList = (ST.cfg.oaFetchedModels && ST.cfg.oaFetchedModels.length) ? ST.cfg.oaFetchedModels : OA_PRESETS;
+      const oCur = ST.cfg.oaModel || 'gpt-4o-mini';
+      const oFinal = oaList.some(x => x.id === oCur) ? oaList : [{ id: oCur, label: oCur }, ...oaList];
+      $('oa-model').innerHTML = oFinal.map(m => `<option value="${esc(m.id)}">${esc(m.label || m.id)}</option>`).join('');
+      $('oa-model').value = oCur;
+      $('oa-active-bdg').textContent = getActiveOaModel();
+    }
+
     function renderSettings() {
       $('sw-snd').classList.toggle('on', ST.cfg.sound);
       $('sw-ai').classList.toggle('on', ST.cfg.aiOn);
+
+      const isOA = ST.cfg.provider === 'openai';
+      $('prov-gemini').className = `seg-btn ${!isOA ? 'exp-on' : ''}`;
+      $('prov-openai').className = `seg-btn ${isOA ? 'inc-on' : ''}`;
+      $('pane-gemini').classList.toggle('hidden', isOA);
+      $('pane-openai').classList.toggle('hidden', !isOA);
+
       $('api-key').value = ST.cfg.apiKey || '';
-      $('api-model').value = ST.cfg.model || 'gemini-2.5-flash';
+      $('api-model-custom').value = ST.cfg.customModel || '';
+
+      $('oa-presets').innerHTML = OA_ENDPOINTS.map((p, idx) =>
+        `<button type="button" data-oap="${idx}" class="qchip">${esc(p.name)}</button>`
+      ).join('');
+      $('oa-url').value = ST.cfg.oaBaseUrl || 'https://api.openai.com/v1';
+      $('oa-key').value = ST.cfg.oaApiKey || '';
+      $('oa-model-custom').value = ST.cfg.oaCustomModel || '';
+
+      renderModelSelects();
       $('set-lim-val').textContent = moneyInt(ST.dailyLimit);
       syncTopBar();
     }
@@ -1881,6 +2207,18 @@
       else if (id === 'set') renderSettings();
     }
 
+    function saveApiCfgFromInputs() {
+      ST.cfg.apiKey = $('api-key').value.trim();
+      ST.cfg.model = $('api-model').value || DEFAULT_GEM_MODEL;
+      ST.cfg.customModel = $('api-model-custom').value.trim();
+      ST.cfg.oaBaseUrl = normalizeOaBase($('oa-url').value);
+      ST.cfg.oaApiKey = $('oa-key').value.trim();
+      ST.cfg.oaModel = $('oa-model').value || 'gpt-4o-mini';
+      ST.cfg.oaCustomModel = $('oa-model-custom').value.trim();
+      wLS(LS.CFG, ST.cfg);
+      syncTopBar();
+    }
+
     function bindEvents() {
       $('snd-btn').onclick = () => {
         ST.cfg.sound = !ST.cfg.sound; wLS(LS.CFG, ST.cfg); syncTopBar();
@@ -1919,7 +2257,7 @@
       $('m-prev').onclick = () => shiftM(-1);
       $('m-next').onclick = () => shiftM(1);
 
-      // 全局事件委托（语音条、撒娇快捷词、明细打开、盖章、音效测试）
+      // 全局事件委托
       $('app').addEventListener('click', e => {
         const vc = e.target.closest('[data-vclose]');
         if (vc) return closeVoice(vc.dataset.vclose);
@@ -1935,6 +2273,21 @@
 
         if (e.target.closest('#btn-stamp')) return slamStamp();
 
+        const oap = e.target.closest('[data-oap]');
+        if (oap) {
+          const p = OA_ENDPOINTS[Number(oap.dataset.oap)];
+          if (p) {
+            playTap();
+            $('oa-url').value = p.url;
+            $('oa-model-custom').value = p.model;
+            ST.cfg.oaBaseUrl = p.url;
+            ST.cfg.oaCustomModel = p.model;
+            $('oa-active-bdg').textContent = p.model;
+            toast(`已填入 ${p.name} 接口地址与默认模型`);
+          }
+          return;
+        }
+
         const sf = e.target.closest('[data-sfx]');
         if (sf) {
           if (!ST.cfg.sound) { ST.cfg.sound = true; wLS(LS.CFG, ST.cfg); renderSettings(); }
@@ -1942,7 +2295,6 @@
         }
       });
 
-      // 自定义撒娇话术表单提交委托
       $('app').addEventListener('submit', e => {
         const fm = e.target.closest('form[data-sw-form]');
         if (!fm) return;
@@ -1957,31 +2309,61 @@
 
       // 设置页绑定
       $('sw-snd').onclick = () => { ST.cfg.sound = !ST.cfg.sound; wLS(LS.CFG, ST.cfg); renderSettings(); if (ST.cfg.sound) playSwipeSound(); };
-      $('sw-ai').onclick = () => { ST.cfg.aiOn = !ST.cfg.aiOn; wLS(LS.CFG, ST.cfg); renderSettings(); toast(ST.cfg.aiOn ? 'Gemini 双引擎已开启' : '已切回本地超全词库'); };
+      $('sw-ai').onclick = () => { ST.cfg.aiOn = !ST.cfg.aiOn; wLS(LS.CFG, ST.cfg); renderSettings(); toast(ST.cfg.aiOn ? 'AI 实时引擎已开启' : '已切回本地超全词库'); };
+
+      $('prov-gemini').onclick = () => {
+        if (ST.cfg.provider !== 'gemini') {
+          playTap(); saveApiCfgFromInputs();
+          ST.cfg.provider = 'gemini'; wLS(LS.CFG, ST.cfg); renderSettings();
+        }
+      };
+      $('prov-openai').onclick = () => {
+        if (ST.cfg.provider !== 'openai') {
+          playTap(); saveApiCfgFromInputs();
+          ST.cfg.provider = 'openai'; wLS(LS.CFG, ST.cfg); renderSettings();
+        }
+      };
+
       $('api-eye').onclick = () => {
         const inp = $('api-key'), show = inp.type === 'password';
-        inp.type = show ? 'text' : 'password';
-        $('api-eye').textContent = show ? '隐藏' : '显示';
+        inp.type = show ? 'text' : 'password'; $('api-eye').textContent = show ? '隐藏' : '显示';
       };
+      $('oa-eye').onclick = () => {
+        const inp = $('oa-key'), show = inp.type === 'password';
+        inp.type = show ? 'text' : 'password'; $('oa-eye').textContent = show ? '隐藏' : '显示';
+      };
+
+      $('api-model').onchange = () => { ST.cfg.model = $('api-model').value; $('gem-active-bdg').textContent = getActiveGemModel(); };
+      $('api-model-custom').oninput = () => { ST.cfg.customModel = $('api-model-custom').value.trim(); $('gem-active-bdg').textContent = getActiveGemModel(); };
+      $('oa-model').onchange = () => { ST.cfg.oaModel = $('oa-model').value; $('oa-active-bdg').textContent = getActiveOaModel(); };
+      $('oa-model-custom').oninput = () => { ST.cfg.oaCustomModel = $('oa-model-custom').value.trim(); $('oa-active-bdg').textContent = getActiveOaModel(); };
+
+      $('btn-fetch-gem').onclick = fetchGemModels;
+      $('btn-fetch-oa').onclick = fetchOaModels;
+
       $('api-save').onclick = () => {
-        ST.cfg.apiKey = $('api-key').value.trim();
-        ST.cfg.model = $('api-model').value;
-        wLS(LS.CFG, ST.cfg); syncTopBar(); playTap();
-        $('api-log').innerHTML = '<span style="color:var(--gold-hi)">✓ 配置已安全保存在本机。</span>';
+        saveApiCfgFromInputs(); renderSettings(); playTap();
+        const isOA = ST.cfg.provider === 'openai';
+        const usedModel = isOA ? getActiveOaModel() : getActiveGemModel();
+        $('api-log').innerHTML = `<span style="color:var(--gold-hi)">✓ 配置已安全保存在本机（当前协议：${isOA ? 'OpenAI 兼容 OA' : 'Gemini 原生'} · 生效模型：<strong>${esc(usedModel)}</strong>）。</span>`;
       };
+
       $('api-test').onclick = async () => {
-        $('api-save').click();
+        saveApiCfgFromInputs();
+        const isOA = ST.cfg.provider === 'openai';
+        const usedModel = isOA ? getActiveOaModel() : getActiveGemModel();
         const b = $('api-test'); b.disabled = true; b.textContent = '连接测试中…';
-        $('api-log').textContent = '正在向 Gemini 发送连通测试…';
+        $('api-log').textContent = `正在向 ${isOA ? 'OA 接口' : 'Gemini'} 发送连通测试（模型：${usedModel}）…`;
         const t0 = performance.now();
         try {
-          await callGemini('仅返回 {"ok":true}');
-          $('api-log').innerHTML = `<span style="color:#9ae0be">✓ 连接成功（${Math.round(performance.now() - t0)} ms · ${esc(ST.cfg.model)}）</span>`;
+          await callAI('仅返回合法JSON：{"ok":true}');
+          $('api-log').innerHTML = `<span style="color:#9ae0be">✓ 连接成功（${Math.round(performance.now() - t0)} ms · ${isOA ? 'OA' : 'Gemini'} · <strong>${esc(usedModel)}</strong>）</span>`;
           playIncomeSound();
         } catch (err) {
-          $('api-log').innerHTML = `<span style="color:#ffafb3">✕ 连接失败：${esc(err.message)}</span>`;
+          $('api-log').innerHTML = `<span style="color:#ffafb3">✕ 连接失败（${esc(usedModel)}）：${esc(err.message)}</span>`;
         } finally { b.disabled = false; b.textContent = '测试连接'; }
       };
+
       $('lim-reset').onclick = () => {
         ST.dailyLimit = 500000; wLS(LS.LIMIT, ST.dailyLimit); renderSettings(); renderCardFace();
         playTap(); toast('副卡单日额度已重置为 ¥500,000');
@@ -1991,7 +2373,7 @@
       $('btn-clear-all').onclick = () => {
         if (!ST.clearArmed) {
           ST.clearArmed = true;
-          $('btn-clear-all').textContent = '再次点击确认清空全部记录（保留 API Key）';
+          $('btn-clear-all').textContent = '再次点击确认清空全部记录（保留 API 密钥）';
           setTimeout(() => { ST.clearArmed = false; if ($('btn-clear-all')) $('btn-clear-all').textContent = '清空全部记录'; }, 4000);
           return;
         }
