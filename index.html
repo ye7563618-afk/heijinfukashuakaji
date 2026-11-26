@@ -14,6 +14,7 @@
   <style>
     :root {
       --app-h: 100vh;
+      --kb-h: 0px;
       --bg: #070709;
       --card: #111116;
       --inp: #181820;
@@ -33,10 +34,11 @@
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
     input, textarea, select { user-select: text; font-family: inherit; }
 
-    /* iPhone 14 Pro Standalone 全屏修复：严禁根容器使用 fixed inset:0 或 100dvh */
+    /* iPhone 14 Pro Standalone 全屏与键盘防整体上滑布局 */
     html, body {
       margin: 0; padding: 0; width: 100%; height: var(--app-h);
-      overflow: hidden; overscroll-behavior: none;
+      position: relative; overflow: hidden; overscroll-behavior: none;
+      touch-action: manipulation;
       background: var(--bg); color: var(--text);
       font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", "Helvetica Neue", sans-serif;
       -webkit-font-smoothing: antialiased;
@@ -69,7 +71,7 @@
 
     /* 顶部栏 */
     .topbar {
-      flex-shrink: 0; z-index: 25;
+      flex-shrink: 0; z-index: 25; touch-action: none;
       padding: max(12px, env(safe-area-inset-top)) 15px 10px;
       background: rgba(11, 11, 16, 0.92);
       backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
@@ -96,16 +98,17 @@
     }
     .snd-btn.off { opacity: 0.42; color: var(--muted); border-color: var(--line); background: rgba(255,255,255,0.03); }
 
-    /* 主滚动容器 */
+    /* 主滚动容器：键盘弹出时仅在内部增加底部避让留白，不推动整页上滑 */
     .main {
       flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch;
-      padding: 12px 14px 22px; scrollbar-width: none;
+      overscroll-behavior-y: contain;
+      padding: 12px 14px calc(22px + var(--kb-h, 0px)); scrollbar-width: none;
     }
     .main::-webkit-scrollbar { display: none; }
 
     /* 底部 4 标签导航栏：无缝延伸至 iOS 小白条后方 */
     .tabbar {
-      flex-shrink: 0; z-index: 25;
+      flex-shrink: 0; z-index: 25; touch-action: none;
       display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px;
       background: rgba(12, 12, 16, 0.96);
       backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
@@ -402,14 +405,16 @@
       animation: rippleOut 0.8s ease-out forwards;
     }
 
-    /* 抽屉弹窗 & 设置控件 */
+    /* 抽屉弹窗：随键盘避让平稳上浮，绝不带动底层整页滑动 */
     #modal {
       position: absolute; inset: 0; z-index: 80;
       background: rgba(0, 0, 0, 0.78); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-      display: flex; align-items: flex-end; justify-content: center; padding: 12px;
+      display: flex; align-items: flex-end; justify-content: center;
+      padding: max(12px, env(safe-area-inset-top)) 12px calc(12px + var(--kb-h, 0px));
     }
     .sheet {
-      width: 100%; max-height: 86%; overflow-y: auto; scrollbar-width: none;
+      width: 100%; max-height: 100%; overflow-y: auto; scrollbar-width: none;
+      overscroll-behavior-y: contain;
       border-radius: 24px; padding: 16px; background: #111118;
       border: 1px solid rgba(214, 178, 124, 0.34); box-shadow: 0 -10px 40px rgba(0,0,0,0.86);
       animation: fadeUp 0.24s ease;
@@ -431,7 +436,7 @@
     .lbl { display: block; font-size: 11px; color: #d0cabf; margin-bottom: 5px; }
 
     #toast {
-      position: absolute; left: 50%; bottom: calc(74px + env(safe-area-inset-bottom)); z-index: 95;
+      position: absolute; left: 50%; bottom: calc(74px + env(safe-area-inset-bottom) + var(--kb-h, 0px)); z-index: 95;
       transform: translate(-50%, 16px); opacity: 0; pointer-events: none;
       padding: 8px 14px; border-radius: 999px; white-space: nowrap;
       background: rgba(22, 22, 30, 0.96); border: 1px solid rgba(214, 178, 124, 0.42);
@@ -740,24 +745,105 @@
 
   <script>
     /* =========================================================================
-       1. iPhone 14 Pro Standalone PWA 真实物理屏高自适应（彻底消除底部 59px 黑边）
+       1. iPhone 14 Pro 全屏零黑边 + 弹键盘绝不带动整页上滑补丁
        ========================================================================= */
+    let fullAppH = window.innerHeight;
+    let baseVvH = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+    const isEditable = el => !!(el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT'));
+
+    function lockPageScroll() {
+      const vv = window.visualViewport;
+      if (window.scrollY !== 0 || window.scrollX !== 0 || (vv && (vv.offsetTop > 0 || vv.offsetLeft > 0))) {
+        window.scrollTo(0, 0);
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
+      }
+    }
+
+    // 始终保持外层容器等于物理全屏高度（不再因弹键盘压缩整页高度导致黑底与错位）
     function syncViewportHeight() {
       const isStandalone = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
-      const ae = document.activeElement;
-      const kbdOpen = ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.tagName === 'SELECT');
-      let h = window.innerHeight;
-      if (kbdOpen && window.visualViewport) {
-        h = window.visualViewport.height;
-      } else if (isStandalone && window.innerHeight >= window.innerWidth) {
-        h = Math.max(window.innerHeight, window.screen.height);
+      const portrait = window.screen.height >= window.screen.width;
+      const h = (isStandalone && portrait)
+        ? Math.max(window.innerHeight, window.screen.height)
+        : window.innerHeight;
+      if (!isEditable(document.activeElement) || h > fullAppH) {
+        fullAppH = h;
+        document.documentElement.style.setProperty('--app-h', fullAppH + 'px');
+        if (window.visualViewport) baseVvH = Math.max(baseVvH, window.visualViewport.height);
       }
-      document.documentElement.style.setProperty('--app-h', h + 'px');
+      lockPageScroll();
     }
+
+    function scrollInputIntoSafeArea(el) {
+      if (!isEditable(el)) return;
+      const vv = window.visualViewport;
+      const visH = vv ? vv.height : window.innerHeight;
+      const scroller = el.closest('.sheet') || document.getElementById('main');
+      if (!scroller) return;
+      const rect = el.getBoundingClientRect();
+      const safeTop = 78;
+      const safeBottom = visH - 26;
+      if (rect.bottom > safeBottom) {
+        scroller.scrollTop += (rect.bottom - safeBottom);
+      } else if (rect.top < safeTop) {
+        scroller.scrollTop -= (safeTop - rect.top);
+      }
+    }
+
+    function handleKeyboardViewport() {
+      const vv = window.visualViewport;
+      if (!vv) { lockPageScroll(); return; }
+      const rawDrop = baseVvH - vv.height;
+      const kbdOpen = rawDrop > 110;
+      if (kbdOpen) {
+        const kbH = Math.max(0, Math.round(fullAppH - vv.height));
+        document.documentElement.style.setProperty('--kb-h', kbH + 'px');
+        lockPageScroll();
+        scrollInputIntoSafeArea(document.activeElement);
+      } else {
+        document.documentElement.style.setProperty('--kb-h', '0px');
+        baseVvH = Math.max(baseVvH, vv.height);
+        lockPageScroll();
+      }
+    }
+
     syncViewportHeight();
-    window.addEventListener('resize', syncViewportHeight);
-    window.addEventListener('orientationchange', () => { syncViewportHeight(); setTimeout(syncViewportHeight, 260); });
-    if (window.visualViewport) window.visualViewport.addEventListener('resize', syncViewportHeight);
+    window.addEventListener('resize', () => {
+      if (!isEditable(document.activeElement)) {
+        baseVvH = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+        syncViewportHeight();
+      }
+      handleKeyboardViewport();
+    });
+    window.addEventListener('orientationchange', () => {
+      baseVvH = 0; fullAppH = 0;
+      document.documentElement.style.setProperty('--kb-h', '0px');
+      setTimeout(() => { syncViewportHeight(); handleKeyboardViewport(); }, 260);
+    });
+    window.addEventListener('scroll', lockPageScroll, { passive: true });
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', handleKeyboardViewport);
+      window.visualViewport.addEventListener('scroll', lockPageScroll);
+    }
+    document.addEventListener('focusin', e => {
+      if (!isEditable(e.target)) return;
+      lockPageScroll();
+      [60, 180, 340].forEach(ms => setTimeout(() => {
+        handleKeyboardViewport();
+        lockPageScroll();
+        scrollInputIntoSafeArea(e.target);
+      }, ms));
+    });
+    document.addEventListener('focusout', () => {
+      setTimeout(() => {
+        if (!isEditable(document.activeElement)) {
+          document.documentElement.style.setProperty('--kb-h', '0px');
+          syncViewportHeight();
+          lockPageScroll();
+        }
+      }, 140);
+    });
 
     /* =========================================================================
        2. 轻量内联 SVG 图标 & 纯 Web Audio API 五大拟真音效合成器
@@ -1187,7 +1273,6 @@
       records: []
     };
 
-    // 自动平滑迁移旧版缓存中的 gemini-2.x / 1.x 默认值至 gemini-3.5-flash-lite（仅当未开启手填且尚未迁移过时）
     (function migrateCfg() {
       let dirty = false;
       if (!ST.cfg.provider) { ST.cfg.provider = 'gemini'; dirty = true; }
@@ -1428,7 +1513,6 @@
         : String(content || '');
       const parsed = parseLooseJSON(txt);
       if (parsed) return parsed;
-      // 若部分中转模型直接返回自然语言文本，兜底包裹不报错
       if (txt.trim()) return { ok: true, reply: txt.trim(), text: txt.trim() };
       throw new Error('接口返回空内容');
     }
@@ -1938,7 +2022,6 @@
     }
 
     function renderModelSelects() {
-      // Gemini 下拉框
       const gemList = (ST.cfg.fetchedModels && ST.cfg.fetchedModels.length) ? ST.cfg.fetchedModels : GEM_PRESETS;
       const gCur = ST.cfg.model || DEFAULT_GEM_MODEL;
       const gFinal = gemList.some(x => x.id === gCur) ? gemList : [{ id: gCur, label: gCur }, ...gemList];
@@ -1946,7 +2029,6 @@
       $('api-model').value = gCur;
       $('gem-active-bdg').textContent = getActiveGemModel();
 
-      // OA 下拉框
       const oaList = (ST.cfg.oaFetchedModels && ST.cfg.oaFetchedModels.length) ? ST.cfg.oaFetchedModels : OA_PRESETS;
       const oCur = ST.cfg.oaModel || 'gpt-4o-mini';
       const oFinal = oaList.some(x => x.id === oCur) ? oaList : [{ id: oCur, label: oCur }, ...oaList];
@@ -1993,6 +2075,9 @@
       const group = isInc ? '宝宝小金库' : (TAG_TO_GRP[tag]?.name || '休闲其他');
       const title = $('f-title').value.trim() || tag;
       const note = $('f-note').value.trim();
+
+      // 收起键盘防止提交瞬间遮挡签购单
+      if (isEditable(document.activeElement)) document.activeElement.blur();
 
       ST.busy = true;
       $('submit-btn').disabled = true;
@@ -2041,7 +2126,11 @@
 
       $('f-amt').value = ''; $('f-title').value = ''; $('f-note').value = '';
       ST.busy = false; $('submit-btn').disabled = false;
-      setTimeout(() => { $('pos-out').scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 70);
+      setTimeout(() => {
+        const main = $('main'), out = $('pos-out');
+        if (main && out) main.scrollTo({ top: Math.max(0, out.offsetTop - 12), behavior: 'smooth' });
+        lockPageScroll();
+      }, 90);
     }
 
     async function sendSweetPhrase(recId, rawText) {
@@ -2070,6 +2159,7 @@
       if (!tx) return;
       if (ST.tab === 'pos' && ST.lastTxId === recId) renderPosOut(tx, true);
       if (ST.modalRecId === recId && !$('modal').classList.contains('hidden')) openDetailModal(recId, true);
+      lockPageScroll();
     }
 
     function openDetailModal(recId, silent = false) {
@@ -2109,6 +2199,7 @@
       ST.modalRecId = null;
       $('modal').classList.add('hidden');
       $('modal').innerHTML = '';
+      lockPageScroll();
     }
 
     function slamStamp() {
@@ -2193,6 +2284,7 @@
 
     function switchTab(id) {
       playTap();
+      if (isEditable(document.activeElement)) document.activeElement.blur();
       ST.tab = id;
       TABS.forEach(t => $('tab-' + t.id).classList.toggle('hidden', t.id !== id));
       document.querySelectorAll('.tabbar .tbtn').forEach(btn => {
@@ -2201,6 +2293,7 @@
         btn.innerHTML = `${ic(meta.id, 19)}<span>${meta.name}</span>`;
       });
       $('main').scrollTop = 0;
+      lockPageScroll();
       if (id === 'pos') renderPosForm();
       else if (id === 'ledger') renderLedger();
       else if (id === 'stmt') renderStmt();
@@ -2242,11 +2335,9 @@
         if (ib) { playTap(); ST.incTag = ib.dataset.itag; renderPosForm(); }
       };
 
-      // 明细页筛选
       $('ld-q').oninput = e => { ST.ldQuery = e.target.value; renderLedger(); };
       $('ld-tabs').onclick = e => { const b = e.target.closest('[data-lf]'); if (b) { playTap(); ST.ldFilter = b.dataset.lf; renderLedger(); } };
 
-      // 偏爱账单月切换
       const shiftM = d => {
         playTap();
         const [y, m] = ST.stmtMonth.split('-').map(Number);
@@ -2257,7 +2348,6 @@
       $('m-prev').onclick = () => shiftM(-1);
       $('m-next').onclick = () => shiftM(1);
 
-      // 全局事件委托
       $('app').addEventListener('click', e => {
         const vc = e.target.closest('[data-vclose]');
         if (vc) return closeVoice(vc.dataset.vclose);
@@ -2307,7 +2397,6 @@
 
       $('modal').onclick = e => { if (e.target === $('modal')) closeModal(); };
 
-      // 设置页绑定
       $('sw-snd').onclick = () => { ST.cfg.sound = !ST.cfg.sound; wLS(LS.CFG, ST.cfg); renderSettings(); if (ST.cfg.sound) playSwipeSound(); };
       $('sw-ai').onclick = () => { ST.cfg.aiOn = !ST.cfg.aiOn; wLS(LS.CFG, ST.cfg); renderSettings(); toast(ST.cfg.aiOn ? 'AI 实时引擎已开启' : '已切回本地超全词库'); };
 
